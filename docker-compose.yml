@@ -1,0 +1,124 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bizware-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bizware_dashboards}
+      POSTGRES_USER: ${POSTGRES_USER:-bizware_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bizware_user} -d ${POSTGRES_DB:-bizware_dashboards}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - bizware-network
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: bizware-n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:?Set N8N_PASSWORD in .env}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-bizware_dashboards}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-bizware_user}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - N8N_HOST=${DOMAIN:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://${DOMAIN:-localhost}/webhook/
+      - GENERIC_TIMEZONE=Asia/Kolkata
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - bizware-network
+
+  backend:
+    build: ./backend
+    container_name: bizware-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/upload-csv
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bizware_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bizware_dashboards}
+      - CORS_ORIGINS=https://${DOMAIN:-localhost},http://localhost:3000
+      - MAX_FILE_SIZE=52428800
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX=100
+      - LOG_LEVEL=info
+      - SAP_ODATA_BASE_URL=${SAP_ODATA_BASE_URL:-https://10.10.2.212:44300/sap/opu/odata/sap/ZBANKFILES_TOPWRBI_SRV}
+      - SAP_USERNAME=${SAP_USERNAME:-}
+      - SAP_PASSWORD=${SAP_PASSWORD:-}
+      - SAP_MOCK_MODE=${SAP_MOCK_MODE:-false}
+      - SAP_SYNC_CRON=${SAP_SYNC_CRON:-0 * * * *}
+      - SAP_SYNC_ENABLED=${SAP_SYNC_ENABLED:-true}
+      - SAP_REQUEST_TIMEOUT=${SAP_REQUEST_TIMEOUT:-120000}
+    networks:
+      - bizware-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - REACT_APP_API_URL=https://${DOMAIN:-localhost}
+        - REACT_APP_POWERBI_EMBED_URL=${POWERBI_EMBED_URL:-}
+    container_name: bizware-frontend
+    restart: unless-stopped
+    networks:
+      - bizware-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: bizware-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_www:/var/www/certbot:ro
+      - certbot_conf:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+      - frontend
+      - n8n
+    networks:
+      - bizware-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: bizware-certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  pgdata:
+  n8n_data:
+  certbot_www:
+  certbot_conf:
+
+networks:
+  bizware-network:
+    driver: bridge

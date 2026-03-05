@@ -1,0 +1,54 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+sync_to_rdp.log
+
+# Test files
+test_*.ps1
+test_*.csv
+
+# CSV data files (contain actual data)
+*.csv
+!backend/src/**/*.csv
+
+# Power BI files (large binaries)
+*.pbix
+
+# Local exports directory
+powerbi_exports/
+
+# Docker volumes
+pgdata/
+n8n_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Claude AI memory (private)
+.claude/
+
+# Sample data (actual data)
+sampleXML/
+
+# Documentation that's redundant
+*.md.backup

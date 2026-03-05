@@ -1,0 +1,124 @@
+# ===========================================================================
+# LOCAL DEVELOPMENT DOCKER COMPOSE
+# Usage: docker compose -f docker-compose.local.yml up --build
+# ===========================================================================
+
+services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL Database
+  # -------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: bizware-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bizware_dashboards
+      POSTGRES_USER: bizware_user
+      POSTGRES_PASSWORD: localdev123
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bizware_user -d bizware_dashboards"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - bizware-network
+
+  # -------------------------------------------------------------------------
+  # n8n Workflow Engine
+  # -------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: bizware-n8n
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin123
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=bizware_dashboards
+      - DB_POSTGRESDB_USER=bizware_user
+      - DB_POSTGRESDB_PASSWORD=localdev123
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      - N8N_SECURE_COOKIE=false
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - bizware-network
+
+  # -------------------------------------------------------------------------
+  # Backend API (Node.js + Express)
+  # -------------------------------------------------------------------------
+  backend:
+    build: ./backend
+    container_name: bizware-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/upload-csv
+      - DATABASE_URL=postgresql://bizware_user:localdev123@postgres:5432/bizware_dashboards
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+      - MAX_FILE_SIZE=52428800
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX=1000
+      - LOG_LEVEL=debug
+      - SAP_ODATA_BASE_URL=https://10.10.2.212:44300/sap/opu/odata/sap/ZBANKFILES_TOPWRBI_SRV
+      - SAP_USERNAME=Bipl_abap
+      - SAP_PASSWORD=Bizware@2026
+      - SAP_MOCK_MODE=false
+      - SAP_SYNC_CRON=0 * * * *
+      - SAP_SYNC_ENABLED=true
+      - SAP_REQUEST_TIMEOUT=120000
+      - CSV_EXPORT_PATH=/data/powerbi_exports
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./powerbi_exports:/data/powerbi_exports
+    networks:
+      - bizware-network
+
+  # -------------------------------------------------------------------------
+  # Frontend (React SPA via nginx)
+  # -------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - REACT_APP_API_URL=http://localhost:3001
+        - REACT_APP_POWERBI_EMBED_URL=https://app.powerbi.com/view?r=eyJrIjoiYzViNTg4ZDktNzVmMC00NDljLWEyOGMtNTg3MDg3YWNhODg5IiwidCI6Ijc4YTYyOGZhLWI0YmMtNDZkYy1iZDA1LThiMzgzYjhmZmExNyJ9
+    container_name: bizware-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - bizware-network
+
+volumes:
+  pgdata:
+  n8n_data:
+
+networks:
+  bizware-network:
+    driver: bridge
