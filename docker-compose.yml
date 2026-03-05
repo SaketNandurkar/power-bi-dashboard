@@ -19,33 +19,6 @@ services:
     networks:
       - bizware-network
 
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: bizware-n8n
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:?Set N8N_PASSWORD in .env}
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-bizware_dashboards}
-      - DB_POSTGRESDB_USER=${POSTGRES_USER:-bizware_user}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - N8N_HOST=${DOMAIN:-localhost}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://${DOMAIN:-localhost}/webhook/
-      - GENERIC_TIMEZONE=Asia/Kolkata
-    volumes:
-      - n8n_data:/home/node/.n8n
-    networks:
-      - bizware-network
-
   backend:
     build: ./backend
     container_name: bizware-backend
@@ -53,12 +26,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      n8n:
-        condition: service_started
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/upload-csv
       - DATABASE_URL=postgresql://${POSTGRES_USER:-bizware_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bizware_dashboards}
       - CORS_ORIGINS=https://${DOMAIN:-localhost},http://localhost:3000
       - MAX_FILE_SIZE=52428800
@@ -72,6 +42,9 @@ services:
       - SAP_SYNC_CRON=${SAP_SYNC_CRON:-0 * * * *}
       - SAP_SYNC_ENABLED=${SAP_SYNC_ENABLED:-true}
       - SAP_REQUEST_TIMEOUT=${SAP_REQUEST_TIMEOUT:-120000}
+      - CSV_EXPORT_PATH=${CSV_EXPORT_PATH:-/data/powerbi_exports}
+    volumes:
+      - ${CSV_EXPORT_HOST_PATH:-./powerbi_exports}:/data/powerbi_exports
     networks:
       - bizware-network
 
@@ -101,7 +74,6 @@ services:
     depends_on:
       - backend
       - frontend
-      - n8n
     networks:
       - bizware-network
 
@@ -115,7 +87,6 @@ services:
 
 volumes:
   pgdata:
-  n8n_data:
   certbot_www:
   certbot_conf:
 

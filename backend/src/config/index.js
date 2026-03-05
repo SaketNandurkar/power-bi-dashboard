@@ -3,7 +3,6 @@ require('dotenv').config();
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 3001,
   nodeEnv: process.env.NODE_ENV || 'development',
-  n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || 'http://n8n:5678/webhook/upload-csv',
   databaseUrl: process.env.DATABASE_URL || 'postgresql://bizware_user:changeme@postgres:5432/bizware_dashboards',
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim()),
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 52428800,

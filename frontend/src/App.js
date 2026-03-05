@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import UploadPanel from './components/UploadPanel';
 import SapSyncPanel from './components/SapSyncPanel';
 import StatusPanel from './components/StatusPanel';
 import PowerBIDashboard from './components/PowerBIDashboard';
@@ -60,8 +59,6 @@ export default function App() {
     switch (activeView) {
       case 'dashboard':
         return <Dashboard reports={reports} sapStatus={sapStatus} />;
-      case 'upload':
-        return <UploadPanel onNotify={handleNotify} onUploadComplete={loadStatus} />;
       case 'sync':
         return <SapSyncPanel onNotify={handleNotify} onSyncComplete={loadStatus} />;
       case 'reports':
@@ -94,7 +91,6 @@ export default function App() {
               margin: 0
             }}>
               {activeView === 'dashboard' && 'Dashboard Overview'}
-              {activeView === 'upload' && 'Upload Data'}
               {activeView === 'sync' && 'SAP Synchronization'}
               {activeView === 'reports' && 'Data Status'}
               {activeView === 'analytics' && 'Analytics Dashboard'}

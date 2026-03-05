@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   DatabaseIcon,
-  UploadIcon,
   SyncIcon,
   ChartIcon,
   ActivityIcon,
@@ -15,12 +14,6 @@ export default function Sidebar({ activeView, onViewChange }) {
       label: 'Dashboard',
       icon: ActivityIcon,
       section: 'main'
-    },
-    {
-      id: 'upload',
-      label: 'Upload Data',
-      icon: UploadIcon,
-      section: 'data'
     },
     {
       id: 'sync',

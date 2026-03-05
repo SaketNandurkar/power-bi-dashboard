@@ -7,7 +7,6 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const errorHandler = require('./middleware/errorHandler');
-const uploadRouter = require('./routes/upload');
 const statusRouter = require('./routes/status');
 const sapRouter = require('./routes/sap');
 const exportRouter = require('./routes/export');
@@ -58,7 +57,6 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '1mb' }));
 
 // Routes
-app.use('/api/upload', uploadRouter);
 app.use('/api/status', statusRouter);
 app.use('/api/sap', sapRouter);
 app.use('/api/export', exportRouter);

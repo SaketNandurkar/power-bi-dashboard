@@ -30,39 +30,6 @@ services:
       - bizware-network
 
   # -------------------------------------------------------------------------
-  # n8n Workflow Engine
-  # -------------------------------------------------------------------------
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: bizware-n8n
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin123
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=bizware_dashboards
-      - DB_POSTGRESDB_USER=bizware_user
-      - DB_POSTGRESDB_PASSWORD=localdev123
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
-      - GENERIC_TIMEZONE=Asia/Kolkata
-      - N8N_SECURE_COOKIE=false
-    ports:
-      - "5678:5678"
-    volumes:
-      - n8n_data:/home/node/.n8n
-    networks:
-      - bizware-network
-
-  # -------------------------------------------------------------------------
   # Backend API (Node.js + Express)
   # -------------------------------------------------------------------------
   backend:
@@ -72,12 +39,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      n8n:
-        condition: service_started
     environment:
       - NODE_ENV=development
       - PORT=3001
-      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/upload-csv
       - DATABASE_URL=postgresql://bizware_user:localdev123@postgres:5432/bizware_dashboards
       - CORS_ORIGINS=http://localhost:3000,http://localhost:8080
       - MAX_FILE_SIZE=52428800
@@ -117,7 +81,6 @@ services:
 
 volumes:
   pgdata:
-  n8n_data:
 
 networks:
   bizware-network:
