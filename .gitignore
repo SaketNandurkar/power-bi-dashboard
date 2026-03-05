@@ -1,54 +1,56 @@
-# Node modules
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# ============================================================================
+# Root .gitignore - Project-level ignores
+# Each subdirectory has its own .gitignore for directory-specific patterns
+# ============================================================================
 
-# Environment files
+# Environment files (root level)
 .env
 .env.local
 .env.*.local
 
-# Logs
+# Logs (root level)
 *.log
-logs/
 sync_to_rdp.log
 
-# Test files
+# Test files (root level)
 test_*.ps1
 test_*.csv
+test_*.js
 
-# CSV data files (contain actual data)
+# CSV data files (contain actual business data - do not commit)
 *.csv
-!backend/src/**/*.csv
 
 # Power BI files (large binaries)
 *.pbix
 
-# Local exports directory
+# Local exports directory (generated at runtime)
 powerbi_exports/
 
-# Docker volumes
+# Docker volumes (persistent data)
 pgdata/
 n8n_data/
 
-# IDE
+# IDE settings
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 nul
 
-# Claude AI memory (private)
+# Claude AI memory (private project memory)
 .claude/
 
-# Sample data (actual data)
+# Sample/test data (contains actual data)
 sampleXML/
 
-# Documentation that's redundant
+# Temporary documentation
 *.md.backup
+
+# Windows sync scripts (contain local paths)
+setup_sync_task.ps1
+sync_to_rdp.ps1

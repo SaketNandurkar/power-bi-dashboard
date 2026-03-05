@@ -1,0 +1,18 @@
+# Backup files
+*.bak
+*.backup
+*.sql.bak
+
+# PostgreSQL specific
+*.dump
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+tmp/
+
+# Database data (if accidentally placed here)
+data/
+pgdata/

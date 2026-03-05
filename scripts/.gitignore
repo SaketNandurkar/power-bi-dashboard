@@ -1,0 +1,15 @@
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+tmp/
+
+# Output files from scripts
+output/
+results/
+
+# Local test files
+test-*.sh
+test-*.ps1
+test-*.js

@@ -1,0 +1,12 @@
+# Temporary documentation files
+*.tmp
+*.bak
+*~
+
+# Build output (if docs are generated)
+_build/
+_site/
+
+# IDE
+.vscode/
+.idea/

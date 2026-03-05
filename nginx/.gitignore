@@ -1,0 +1,20 @@
+# Logs
+*.log
+logs/
+access.log
+error.log
+
+# SSL certificates (should use secrets management)
+*.key
+*.crt
+*.pem
+*.csr
+ssl/
+
+# Temporary files
+*.tmp
+tmp/
+cache/
+
+# nginx runtime files
+*.pid

@@ -1,0 +1,17 @@
+# n8n data directory (contains credentials and execution data)
+.n8n/
+
+# Logs
+*.log
+logs/
+
+# Credentials (sensitive)
+credentials.json
+
+# Temporary files
+*.tmp
+tmp/
+
+# Backups
+*.bak
+backups/
