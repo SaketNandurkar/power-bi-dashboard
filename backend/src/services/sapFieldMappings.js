@@ -55,7 +55,7 @@ const ENTITY_SET_CONFIG = {
   },
 
   sales_register: {
-    entitySetName: 'ZENTITY_SALESREGSet',
+    entitySetName: 'zentity_salesregSet',
     fields: [
       { sap: 'ZinvNo',       db: 'invoice_no',               type: 'text' },
       { sap: 'ZbillingTyp',  db: 'billing_type',             type: 'text' },

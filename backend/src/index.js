@@ -53,7 +53,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// JSON parsing for non-upload routes
+// JSON parsing
 app.use(express.json({ limit: '1mb' }));
 
 // Routes

@@ -5,7 +5,6 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   databaseUrl: process.env.DATABASE_URL || 'postgresql://bizware_user:changeme@postgres:5432/bizware_dashboards',
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim()),
-  maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 52428800,
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000,
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
   logLevel: process.env.LOG_LEVEL || 'info',

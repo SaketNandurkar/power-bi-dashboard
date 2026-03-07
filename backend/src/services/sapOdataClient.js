@@ -11,7 +11,7 @@ const MOCK_FILES = {
   'ZENTITY_ACCPAYABLESet': 'Accounts_payable.xml',
   'ZENTITY_BankSet': 'BankRecords.xml',
   'ZENTITY_AL11Set': 'AL11Set.xml',
-  'ZENTITY_SALESREGSet': 'SalesRegister.xml'
+  'zentity_salesregSet': 'SalesRegister.xml'
 };
 
 // XML parser configured for SAP OData v2 Atom feeds

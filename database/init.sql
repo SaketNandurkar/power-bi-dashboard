@@ -573,21 +573,21 @@ $$ LANGUAGE plpgsql;
 DO $$
 BEGIN
     -- Grant usage on schemas
-    EXECUTE 'GRANT USAGE ON SCHEMA raw TO bizware_user';
-    EXECUTE 'GRANT USAGE ON SCHEMA curated TO bizware_user';
-    EXECUTE 'GRANT USAGE ON SCHEMA audit TO bizware_user';
+    EXECUTE 'GRANT USAGE ON SCHEMA raw TO aposap_user';
+    EXECUTE 'GRANT USAGE ON SCHEMA curated TO aposap_user';
+    EXECUTE 'GRANT USAGE ON SCHEMA audit TO aposap_user';
 
     -- Grant table permissions
-    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA raw TO bizware_user';
-    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA curated TO bizware_user';
-    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA audit TO bizware_user';
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA raw TO aposap_user';
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA curated TO aposap_user';
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA audit TO aposap_user';
 
     -- Grant sequence permissions
-    EXECUTE 'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA audit TO bizware_user';
+    EXECUTE 'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA audit TO aposap_user';
 
     -- Grant function permissions
-    EXECUTE 'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA raw TO bizware_user';
+    EXECUTE 'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA raw TO aposap_user';
 EXCEPTION
     WHEN undefined_object THEN
-        RAISE NOTICE 'Role bizware_user does not exist yet - skipping grants';
+        RAISE NOTICE 'Role aposap_user does not exist yet - skipping grants';
 END $$;
