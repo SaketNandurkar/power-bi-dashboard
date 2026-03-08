@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const { v4: uuidv4 } = require('uuid');
@@ -61,6 +62,16 @@ app.use('/api/status', statusRouter);
 app.use('/api/sap', sapRouter);
 app.use('/api/export', exportRouter);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+
+// Serve frontend static files (production: backend serves the React build)
+const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'build');
+app.use(express.static(frontendBuildPath));
+
+// SPA fallback: serve index.html for any non-API routes
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(frontendBuildPath, 'index.html'));
+});
 
 // Error handler
 app.use(errorHandler);
