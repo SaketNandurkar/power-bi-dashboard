@@ -47,6 +47,7 @@ nul
 
 # Sample/test data (contains actual data)
 sampleXML/
+*.xml
 
 # Temporary documentation
 *.md.backup
