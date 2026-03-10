@@ -59,6 +59,12 @@ function renderPieLabel({ name, percent }) {
   return `${name} (${(percent * 100).toFixed(1)}%)`;
 }
 
+// ── Truncate long labels ──
+function truncLabel(str, max = 18) {
+  if (!str) return '';
+  return str.length > max ? str.slice(0, max) + '...' : str;
+}
+
 // ═══════════════════════════════════════════════
 // HOME TAB
 // ═══════════════════════════════════════════════
@@ -105,106 +111,137 @@ function HomeTab({ salesData, budgetData }) {
   const trendByYear = {};
   for (const row of salesData.sales_trend) {
     const gName = topGroups.includes(row.group_name) ? row.group_name : null;
-    if (!gName || gName === 'Others') continue; // skip Others for line chart clarity
+    if (!gName || gName === 'Others') continue;
     if (!trendByYear[row.fiscal_year]) trendByYear[row.fiscal_year] = { year: row.fiscal_year };
     trendByYear[row.fiscal_year][gName] = (trendByYear[row.fiscal_year][gName] || 0) + Number(row.total_amount);
   }
   const trendData = Object.values(trendByYear).sort((a, b) => a.year - b.year);
 
-  // ── Budget by group line (from budgetData) ──
+  // ── Budget by group (from budgetData) ──
   const budgetGroupData = budgetData?.budget_by_group?.map(r => ({
     group: r.group_name, budget_cr: Number(r.budget_cr)
   })) || [];
 
+  // ── Dynamic bar height based on group count ──
+  const barCount = stackedBarData.length;
+  const barChartHeight = Math.max(320, barCount * 45 + 80);
+
   return (
-    <div className="analytics-grid">
-      {/* Chart 1: Stacked Bar - Sales by Group & FY */}
-      <div className="analytics-chart-card">
-        <h3 className="analytics-chart-title">Total Sales Amount by Group and Fiscal Year</h3>
-        <div className="analytics-chart-legend">
-          {years.map((y, i) => (
-            <span key={y} className="analytics-legend-item">
-              <span className="analytics-legend-dot" style={{ background: COLORS[i % COLORS.length] }} />
-              Fiscal Year {y}
-            </span>
-          ))}
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={stackedBarData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="group" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={formatIndian} tick={{ fontSize: 12 }} />
-            <Tooltip content={<CustomTooltip />} />
+    <div className="analytics-home-grid">
+      {/* Row 1: Sales Bar + Donut side by side */}
+      <div className="analytics-home-row">
+        {/* Chart 1: Horizontal Stacked Bar - Sales by Group & FY */}
+        <div className="analytics-chart-card analytics-home-bar">
+          <h3 className="analytics-chart-title">Total Sales by Group & Fiscal Year</h3>
+          <div className="analytics-chart-legend">
             {years.map((y, i) => (
-              <Bar key={y} dataKey={`FY${y}`} name={`FY ${y}`} stackId="a" fill={COLORS[i % COLORS.length]} />
+              <span key={y} className="analytics-legend-item">
+                <span className="analytics-legend-dot" style={{ background: COLORS[i % COLORS.length] }} />
+                FY {y}
+              </span>
             ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Chart 2: Donut - Total by Group */}
-      <div className="analytics-chart-card">
-        <h3 className="analytics-chart-title">Total Amount by Group</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <PieChart>
-            <Pie
-              data={donutData}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={110}
-              dataKey="value"
-              label={renderPieLabel}
-              labelLine={{ strokeWidth: 1 }}
-            >
-              {donutData.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(val) => formatFullIndian(val)} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Chart 3: Budget by Group */}
-      <div className="analytics-chart-card">
-        <h3 className="analytics-chart-title">Budget by Group</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={budgetGroupData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="group" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={formatIndian} tick={{ fontSize: 12 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="budget_cr" name="Budget (CR)" fill="#2563eb" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Chart 4: Multi-line - Sales Trend by Year & Group */}
-      <div className="analytics-chart-card analytics-chart-full">
-        <h3 className="analytics-chart-title">Total Sales Amount by Year and Group</h3>
-        <ResponsiveContainer width="100%" height={350}>
-          <LineChart data={trendData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={formatIndian} tick={{ fontSize: 12 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            {trendGroups.map((g, i) => (
-              <Line
-                key={g}
-                type="monotone"
-                dataKey={g}
-                name={g}
-                stroke={COLORS[i % COLORS.length]}
-                strokeWidth={2}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
+          </div>
+          <ResponsiveContainer width="100%" height={barChartHeight}>
+            <BarChart data={stackedBarData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+              <XAxis type="number" tickFormatter={formatIndian} tick={{ fontSize: 11 }} />
+              <YAxis
+                type="category"
+                dataKey="group"
+                width={140}
+                tick={{ fontSize: 11 }}
+                tickFormatter={v => truncLabel(v, 20)}
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+              <Tooltip content={<CustomTooltip />} />
+              {years.map((y, i) => (
+                <Bar key={y} dataKey={`FY${y}`} name={`FY ${y}`} stackId="a" fill={COLORS[i % COLORS.length]} radius={i === years.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chart 2: Donut - Total by Group */}
+        <div className="analytics-chart-card analytics-home-donut">
+          <h3 className="analytics-chart-title">Total Amount by Group</h3>
+          <ResponsiveContainer width="100%" height={barChartHeight}>
+            <PieChart>
+              <Pie
+                data={donutData}
+                cx="50%"
+                cy="45%"
+                innerRadius="35%"
+                outerRadius="60%"
+                dataKey="value"
+                label={renderPieLabel}
+                labelLine={{ strokeWidth: 1 }}
+              >
+                {donutData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(val) => formatFullIndian(val)} />
+              <Legend
+                layout="horizontal"
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Row 2: Budget Bar + Sales Trend side by side */}
+      <div className="analytics-home-row">
+        {/* Chart 3: Budget by Group */}
+        <div className="analytics-chart-card analytics-home-half">
+          <h3 className="analytics-chart-title">Budget (CR) by Group</h3>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={budgetGroupData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+              <XAxis type="number" tickFormatter={formatIndian} tick={{ fontSize: 11 }} />
+              <YAxis
+                type="category"
+                dataKey="group"
+                width={140}
+                tick={{ fontSize: 11 }}
+                tickFormatter={v => truncLabel(v, 20)}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="budget_cr" name="Budget (CR)" radius={[0, 4, 4, 0]}>
+                {budgetGroupData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chart 4: Multi-line - Sales Trend by Year & Group */}
+        <div className="analytics-chart-card analytics-home-half">
+          <h3 className="analytics-chart-title">Sales Trend by Year & Group</h3>
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={trendData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={formatIndian} tick={{ fontSize: 11 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+              {trendGroups.map((g, i) => (
+                <Line
+                  key={g}
+                  type="monotone"
+                  dataKey={g}
+                  name={truncLabel(g, 16)}
+                  stroke={COLORS[i % COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ r: 3, strokeWidth: 2 }}
+                  activeDot={{ r: 5 }}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

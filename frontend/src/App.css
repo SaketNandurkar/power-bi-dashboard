@@ -886,6 +886,34 @@ body {
   grid-column: 1 / -1;
 }
 
+/* ── HOME Tab Layout ── */
+.analytics-home-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.analytics-home-row {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: stretch;
+}
+
+.analytics-home-bar {
+  flex: 3;
+  min-width: 0;
+}
+
+.analytics-home-donut {
+  flex: 2;
+  min-width: 0;
+}
+
+.analytics-home-half {
+  flex: 1;
+  min-width: 0;
+}
+
 .analytics-chart-title {
   font-size: 14px;
   font-weight: 700;
@@ -1014,6 +1042,12 @@ body {
 }
 
 /* ── Responsive ── */
+@media (max-width: 1100px) {
+  .analytics-home-row {
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 900px) {
   .analytics-grid {
     grid-template-columns: 1fr;
