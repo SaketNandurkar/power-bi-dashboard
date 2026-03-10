@@ -348,6 +348,40 @@ FROM curated.sales_register;
 
 COMMENT ON VIEW curated.v_sales_register IS 'Power BI view - sales register with original CSV column names (updated with new fields).';
 
+-- Sheet1 view: Budget Report with Power BI's original column names
+CREATE OR REPLACE VIEW curated."Sheet1" AS
+SELECT
+    budget_cr    AS "Budget (CR)",
+    group_name   AS "Group",
+    income_group AS "Income Group",
+    zmonth       AS "Month",
+    year         AS "Year"
+FROM curated.budget_report;
+
+COMMENT ON VIEW curated."Sheet1" IS 'Power BI view - budget report with original Sheet1 column names.';
+
+-- ZSDR01 view: Sales Register with Power BI's original column names
+CREATE OR REPLACE VIEW curated."ZSDR01" AS
+SELECT
+    billing_type             AS "Bill Type",
+    billing_type_description AS "Bill Type Descc",
+    bill_to_name             AS "Bill-To Name",
+    bill_to                  AS "Bill-To Party Customer",
+    fiscal_year              AS "Fiscal Year",
+    invoice_no               AS "Invoice No.",
+    invoice_no               AS "inv no",
+    invoice_date             AS "Inv. Date",
+    total                    AS "Total amount",
+    NULL::TEXT               AS "Group",
+    billing_quantity         AS "Billing quantity in SKU",
+    net_value                AS "Inv. Net value(LOC)",
+    tax_amount               AS "Inv. Tax Amount(LOC)",
+    NULL::TEXT               AS "Inv group",
+    NULL::TEXT               AS "Text Before Delimiter"
+FROM curated.sales_register;
+
+COMMENT ON VIEW curated."ZSDR01" IS 'Power BI view - sales register with original ZSDR01 column names.';
+
 -- ============================================================================
 -- UPSERT FUNCTIONS (hash-based delta detection)
 -- ============================================================================
