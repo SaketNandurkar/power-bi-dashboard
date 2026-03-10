@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const { v4: uuidv4 } = require('uuid');
 const config = require('./config');
 const logger = require('./utils/logger');
-const { apiLimiter } = require('./middleware/rateLimiter');
+const { readLimiter, writeLimiter } = require('./middleware/rateLimiter');
 const errorHandler = require('./middleware/errorHandler');
 const statusRouter = require('./routes/status');
 const sapRouter = require('./routes/sap');
@@ -30,8 +30,11 @@ app.use(cors({
   maxAge: 86400
 }));
 
-// Rate limiting
-app.use('/api/', apiLimiter);
+// Rate limiting — generous for reads, strict for writes
+app.use('/api/', (req, res, next) => {
+  if (req.method === 'GET') return readLimiter(req, res, next);
+  return writeLimiter(req, res, next);
+});
 
 // Request ID middleware
 app.use((req, res, next) => {

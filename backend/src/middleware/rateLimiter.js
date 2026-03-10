@@ -1,9 +1,22 @@
 const rateLimit = require('express-rate-limit');
 const config = require('../config');
 
-const apiLimiter = rateLimit({
+// Read-only GET endpoints (status polling, analytics) — generous limit
+const readLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
-  max: config.rateLimitMax,
+  max: 10000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    message: 'Too many requests. Please try again later.'
+  }
+});
+
+// Mutating POST/PUT endpoints (sync, schedule) — stricter limit
+const writeLimiter = rateLimit({
+  windowMs: config.rateLimitWindowMs,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -23,4 +36,4 @@ const uploadLimiter = rateLimit({
   }
 });
 
-module.exports = { apiLimiter, uploadLimiter };
+module.exports = { readLimiter, writeLimiter, uploadLimiter };
