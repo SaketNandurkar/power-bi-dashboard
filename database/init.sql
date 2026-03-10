@@ -1,5 +1,5 @@
 -- ============================================================================
--- Bizware Power BI Dashboards - PostgreSQL Schema
+-- Apothecon Analytics Dashboards - PostgreSQL Schema
 -- Production-ready migration with hash-based delta detection
 -- ============================================================================
 

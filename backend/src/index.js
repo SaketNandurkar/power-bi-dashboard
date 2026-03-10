@@ -83,7 +83,7 @@ app.use(errorHandler);
 
 // Start server
 app.listen(config.port, '0.0.0.0', () => {
-  logger.info(`Bizware API server started`, {
+  logger.info(`Apothecon API server started`, {
     port: config.port,
     env: config.nodeEnv,
     cors: config.corsOrigins

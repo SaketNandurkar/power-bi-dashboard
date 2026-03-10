@@ -1,5 +1,5 @@
 /* ============================================================================
-   BIZWARE ANALYTICS - ENTERPRISE UI DESIGN SYSTEM
+   APOTHECON ANALYTICS - ENTERPRISE UI DESIGN SYSTEM
    Professional, Corporate-Grade Dashboard Interface
    ============================================================================ */
 
@@ -209,18 +209,12 @@ body {
   gap: var(--spacing-md);
 }
 
-.sidebar-logo {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-primary-700) 100%);
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 20px;
-  box-shadow: var(--shadow-md);
+.sidebar-logo-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .sidebar-brand-text {
@@ -228,18 +222,19 @@ body {
 }
 
 .sidebar-brand-title {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
-  color: var(--color-gray-900);
+  color: #0097A7;
   letter-spacing: -0.025em;
 }
 
 .sidebar-brand-subtitle {
-  font-size: 11px;
-  color: var(--color-gray-500);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
+  font-size: 10px;
+  color: #0097A7;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+  opacity: 0.75;
 }
 
 .sidebar-nav {

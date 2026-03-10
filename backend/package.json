@@ -1,7 +1,7 @@
 {
-  "name": "bizware-dashboards-backend",
+  "name": "apothecon-dashboards-backend",
   "version": "1.0.0",
-  "description": "Backend API for Bizware Power BI Dashboards",
+  "description": "Backend API for Apothecon Analytics Dashboards",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

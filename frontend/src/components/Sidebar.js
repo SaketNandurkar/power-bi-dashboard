@@ -50,10 +50,14 @@ export default function Sidebar({ activeView, onViewChange }) {
     <div className="app-sidebar">
       {/* Brand */}
       <div className="sidebar-brand">
-        <div className="sidebar-logo">B</div>
+        <img
+          src={process.env.PUBLIC_URL + '/logo-icon.svg'}
+          alt="Apothecon"
+          className="sidebar-logo-img"
+        />
         <div className="sidebar-brand-text">
-          <div className="sidebar-brand-title">Bizware</div>
-          <div className="sidebar-brand-subtitle">Analytics Portal</div>
+          <div className="sidebar-brand-title">Apothecon</div>
+          <div className="sidebar-brand-subtitle">Caring For Humanity</div>
         </div>
       </div>
 
