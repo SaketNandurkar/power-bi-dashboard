@@ -3,7 +3,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import SapSyncPanel from './components/SapSyncPanel';
 import StatusPanel from './components/StatusPanel';
-import PowerBIDashboard from './components/PowerBIDashboard';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import Notification from './components/Notification';
 import { CalendarIcon } from './components/Icons';
 import { fetchStatus, fetchSapStatus } from './services/api';
@@ -64,7 +64,7 @@ export default function App() {
       case 'reports':
         return <StatusPanel reports={reports} loading={statusLoading} />;
       case 'analytics':
-        return <PowerBIDashboard />;
+        return <AnalyticsDashboard />;
       default:
         return <Dashboard reports={reports} sapStatus={sapStatus} />;
     }

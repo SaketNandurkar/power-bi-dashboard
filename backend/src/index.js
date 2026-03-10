@@ -11,6 +11,7 @@ const errorHandler = require('./middleware/errorHandler');
 const statusRouter = require('./routes/status');
 const sapRouter = require('./routes/sap');
 const exportRouter = require('./routes/export');
+const analyticsRouter = require('./routes/analytics');
 const { startScheduler } = require('./services/sapScheduler');
 
 const app = express();
@@ -61,6 +62,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/status', statusRouter);
 app.use('/api/sap', sapRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/analytics', analyticsRouter);
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // Serve frontend static files (production: backend serves the React build)

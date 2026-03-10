@@ -602,6 +602,16 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
+-- CUSTOMER GROUP MAPPING (for analytics dashboard grouping)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS curated.customer_group_mapping (
+    bill_to     TEXT NOT NULL PRIMARY KEY,
+    group_name  TEXT NOT NULL
+);
+
+COMMENT ON TABLE curated.customer_group_mapping IS 'Maps bill_to customer codes to high-level group names for analytics charts.';
+
+-- ============================================================================
 -- GRANT PERMISSIONS
 -- ============================================================================
 DO $$
