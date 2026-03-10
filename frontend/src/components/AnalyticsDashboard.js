@@ -43,8 +43,19 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
-// ── Pie label ──
-function renderPieLabel({ name, value, percent }) {
+// ── Top N + Others aggregation ──
+const TOP_N = 8;
+function topNWithOthers(data, nameKey, valueKey) {
+  if (data.length <= TOP_N) return data;
+  const sorted = [...data].sort((a, b) => Number(b[valueKey]) - Number(a[valueKey]));
+  const top = sorted.slice(0, TOP_N);
+  const othersTotal = sorted.slice(TOP_N).reduce((sum, r) => sum + Number(r[valueKey]), 0);
+  return [...top, { [nameKey]: 'Others', [valueKey]: othersTotal }];
+}
+
+// ── Pie label (only show if > 3%) ──
+function renderPieLabel({ name, percent }) {
+  if (percent < 0.03) return '';
   return `${name} (${(percent * 100).toFixed(1)}%)`;
 }
 
@@ -54,30 +65,49 @@ function renderPieLabel({ name, value, percent }) {
 function HomeTab({ salesData, budgetData }) {
   if (!salesData) return <div className="analytics-loading">Loading sales data...</div>;
 
-  // ── Stacked bar: Sales by Group & Fiscal Year ──
+  // ── Identify top groups by total sales ──
+  const topGroups = topNWithOthers(salesData.sales_by_group, 'group_name', 'total_amount')
+    .map(r => r.group_name);
+
+  // ── Stacked bar: Sales by Group & Fiscal Year (top N only) ──
   const years = [...new Set(salesData.sales_by_group_year.map(r => r.fiscal_year))].sort();
   const groupsMap = {};
+  const othersMap = {};
   for (const row of salesData.sales_by_group_year) {
-    if (!groupsMap[row.group_name]) groupsMap[row.group_name] = {};
-    groupsMap[row.group_name][row.fiscal_year] = Number(row.total_amount);
+    const gName = topGroups.includes(row.group_name) ? row.group_name : 'Others';
+    if (gName === 'Others') {
+      if (!othersMap[row.fiscal_year]) othersMap[row.fiscal_year] = 0;
+      othersMap[row.fiscal_year] += Number(row.total_amount);
+    } else {
+      if (!groupsMap[gName]) groupsMap[gName] = {};
+      groupsMap[gName][row.fiscal_year] = (groupsMap[gName][row.fiscal_year] || 0) + Number(row.total_amount);
+    }
+  }
+  if (Object.keys(othersMap).length > 0) {
+    groupsMap['Others'] = othersMap;
   }
   const stackedBarData = Object.entries(groupsMap).map(([group, yearData]) => {
     const entry = { group };
     for (const y of years) entry[`FY${y}`] = yearData[y] || 0;
     return entry;
+  }).sort((a, b) => {
+    const totalA = years.reduce((s, y) => s + (a[`FY${y}`] || 0), 0);
+    const totalB = years.reduce((s, y) => s + (b[`FY${y}`] || 0), 0);
+    return totalB - totalA;
   });
 
-  // ── Donut: Total by Group ──
-  const donutData = salesData.sales_by_group.map(r => ({
-    name: r.group_name, value: Number(r.total_amount)
-  }));
+  // ── Donut: Total by Group (top N + Others) ──
+  const donutData = topNWithOthers(salesData.sales_by_group, 'group_name', 'total_amount')
+    .map(r => ({ name: r.group_name, value: Number(r.total_amount) }));
 
-  // ── Multi-line: Sales trend by Year & Group ──
-  const trendGroups = [...new Set(salesData.sales_trend.map(r => r.group_name))];
+  // ── Multi-line: Sales trend by Year & Group (top N only) ──
+  const trendGroups = topGroups.filter(g => g !== 'Others');
   const trendByYear = {};
   for (const row of salesData.sales_trend) {
+    const gName = topGroups.includes(row.group_name) ? row.group_name : null;
+    if (!gName || gName === 'Others') continue; // skip Others for line chart clarity
     if (!trendByYear[row.fiscal_year]) trendByYear[row.fiscal_year] = { year: row.fiscal_year };
-    trendByYear[row.fiscal_year][row.group_name] = Number(row.total_amount);
+    trendByYear[row.fiscal_year][gName] = (trendByYear[row.fiscal_year][gName] || 0) + Number(row.total_amount);
   }
   const trendData = Object.values(trendByYear).sort((a, b) => a.year - b.year);
 
