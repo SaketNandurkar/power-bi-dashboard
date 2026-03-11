@@ -1,18 +1,31 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  ComposedChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList
 } from 'recharts';
 import { ChartIcon, RefreshIcon } from './Icons';
 import {
   fetchSalesSummary, fetchBudgetSummary, fetchSalesYoY,
-  fetchAnalyticsFilters, fetchSapStatus
+  fetchBudgetVsSales, fetchAnalyticsFilters, fetchSapStatus
 } from '../services/api';
 
-// ── Color palette ──
-const COLORS = ['#2563eb', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+// ── Color palette (Power BI-like) ──
+const GROUP_COLORS = {
+  'APPL': '#4472C4',
+  'CMO Sales for Mfg our FG': '#ED7D31',
+  'Navinta LLC': '#A5A5A5',
+  'Waymade PLC': '#FFC000',
+  'Scrap & Others Sales': '#5B9BD5'
+};
+const COLORS = ['#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47', '#264478', '#9B57A0'];
+const FY_COLORS = ['#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47'];
 
-// ── Indian number formatting ──
+function getGroupColor(name, idx) {
+  return GROUP_COLORS[name] || COLORS[idx % COLORS.length];
+}
+
+// ── Number formatting ──
 function formatIndian(num) {
   if (num == null || isNaN(num)) return '0';
   const n = Number(num);
@@ -27,6 +40,22 @@ function formatFullIndian(num) {
   if (num == null || isNaN(num)) return '0';
   return Number(num).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+function formatMillions(num) {
+  if (num == null || isNaN(num)) return '0.00';
+  return (Number(num) / 1e6).toFixed(2);
+}
+
+function formatMillionsShort(num) {
+  if (num == null || isNaN(num)) return '0';
+  const m = Number(num) / 1e6;
+  if (Math.abs(m) >= 1000) return (m / 1000).toFixed(1) + 'B';
+  if (Math.abs(m) >= 1) return m.toFixed(1) + 'M';
+  return formatIndian(num);
+}
+
+// ── Months ──
+const MONTH_ABBR = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ── Custom tooltip ──
 function CustomTooltip({ active, payload, label }) {
@@ -53,130 +82,168 @@ function topNWithOthers(data, nameKey, valueKey) {
   return [...top, { [nameKey]: 'Others', [valueKey]: othersTotal }];
 }
 
-// ── Pie label (only show if > 3%) ──
-function renderPieLabel({ name, percent }) {
-  if (percent < 0.03) return '';
-  return `${name} (${(percent * 100).toFixed(1)}%)`;
-}
-
-// ── Truncate long labels ──
-function truncLabel(str, max = 18) {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '...' : str;
+// ── Pie label ──
+function renderPieLabel({ name, value, percent }) {
+  if (percent < 0.02) return '';
+  return `${name}\n${formatMillions(value)}M`;
 }
 
 // ═══════════════════════════════════════════════
-// HOME TAB
+// HOME TAB — 6-panel Power BI layout
 // ═══════════════════════════════════════════════
-function HomeTab({ salesData, budgetData }) {
+function HomeTab({ salesData, budgetData, budgetVsSalesData }) {
   if (!salesData) return <div className="analytics-loading">Loading sales data...</div>;
 
-  // ── Identify top groups by total sales ──
+  // ── Identify top groups ──
   const topGroups = topNWithOthers(salesData.sales_by_group, 'group_name', 'total_amount')
     .map(r => r.group_name);
 
-  // ── Stacked bar: Sales by Group & Fiscal Year (top N only) ──
+  // ═══ PANEL 1: Stacked Bar — Sales by Group & Fiscal Year ═══
   const years = [...new Set(salesData.sales_by_group_year.map(r => r.fiscal_year))].sort();
-  const groupsMap = {};
-  const othersMap = {};
+  const barDataMap = {};
   for (const row of salesData.sales_by_group_year) {
     const gName = topGroups.includes(row.group_name) ? row.group_name : 'Others';
-    if (gName === 'Others') {
-      if (!othersMap[row.fiscal_year]) othersMap[row.fiscal_year] = 0;
-      othersMap[row.fiscal_year] += Number(row.total_amount);
-    } else {
-      if (!groupsMap[gName]) groupsMap[gName] = {};
-      groupsMap[gName][row.fiscal_year] = (groupsMap[gName][row.fiscal_year] || 0) + Number(row.total_amount);
-    }
+    if (!barDataMap[row.fiscal_year]) barDataMap[row.fiscal_year] = { fiscal_year: `FY ${row.fiscal_year}` };
+    barDataMap[row.fiscal_year][gName] = (barDataMap[row.fiscal_year][gName] || 0) + Number(row.total_amount);
   }
-  if (Object.keys(othersMap).length > 0) {
-    groupsMap['Others'] = othersMap;
-  }
-  const stackedBarData = Object.entries(groupsMap).map(([group, yearData]) => {
-    const entry = { group };
-    for (const y of years) entry[`FY${y}`] = yearData[y] || 0;
-    return entry;
-  }).sort((a, b) => {
-    const totalA = years.reduce((s, y) => s + (a[`FY${y}`] || 0), 0);
-    const totalB = years.reduce((s, y) => s + (b[`FY${y}`] || 0), 0);
-    return totalB - totalA;
+  const stackedBarData = Object.values(barDataMap).sort((a, b) => {
+    const ya = parseInt(a.fiscal_year.replace('FY ', ''));
+    const yb = parseInt(b.fiscal_year.replace('FY ', ''));
+    return ya - yb;
   });
+  const barGroups = [...new Set(salesData.sales_by_group_year.map(r =>
+    topGroups.includes(r.group_name) ? r.group_name : 'Others'
+  ))];
 
-  // ── Donut: Total by Group (top N + Others) ──
-  const donutData = topNWithOthers(salesData.sales_by_group, 'group_name', 'total_amount')
-    .map(r => ({ name: r.group_name, value: Number(r.total_amount) }));
+  // Grand total
+  const grandTotal = salesData.grand_total || 0;
 
-  // ── Multi-line: Sales trend by Year & Group (top N only) ──
+  // ═══ PANEL 2: Monthly Trend — Sales by Month & Group ═══
+  const monthlyRaw = salesData.sales_monthly_trend || [];
   const trendGroups = topGroups.filter(g => g !== 'Others');
-  const trendByYear = {};
-  for (const row of salesData.sales_trend) {
+  const monthlyMap = {};
+  for (const row of monthlyRaw) {
     const gName = topGroups.includes(row.group_name) ? row.group_name : null;
     if (!gName || gName === 'Others') continue;
-    if (!trendByYear[row.fiscal_year]) trendByYear[row.fiscal_year] = { year: row.fiscal_year };
-    trendByYear[row.fiscal_year][gName] = (trendByYear[row.fiscal_year][gName] || 0) + Number(row.total_amount);
+    const key = `${row.year}-${String(row.month).padStart(2, '0')}`;
+    const label = `${MONTH_ABBR[row.month]} ${row.year}`;
+    if (!monthlyMap[key]) monthlyMap[key] = { key, label, sortKey: Number(row.year) * 100 + Number(row.month) };
+    monthlyMap[key][gName] = (monthlyMap[key][gName] || 0) + Number(row.total_amount);
   }
-  const trendData = Object.values(trendByYear).sort((a, b) => a.year - b.year);
+  const monthlyData = Object.values(monthlyMap).sort((a, b) => a.sortKey - b.sortKey);
 
-  // ── Budget by group (from budgetData) ──
-  const budgetGroupData = budgetData?.budget_by_group?.map(r => ({
-    group: r.group_name, budget_cr: Number(r.budget_cr)
-  })) || [];
+  // ═══ PANEL 3: Pie — Total by Group ═══
+  const pieData = topNWithOthers(salesData.sales_by_group, 'group_name', 'total_amount')
+    .map(r => ({ name: r.group_name, value: Number(r.total_amount) }));
 
-  // ── Dynamic bar height based on group count ──
-  const barCount = stackedBarData.length;
-  const barChartHeight = Math.max(320, barCount * 45 + 80);
+  // ═══ PANEL 4: Sales Matrix Table (Group × Year in Millions) ═══
+  const matrixGroups = {};
+  for (const row of salesData.sales_by_group_year) {
+    const gName = topGroups.includes(row.group_name) ? row.group_name : 'Others';
+    if (!matrixGroups[gName]) matrixGroups[gName] = {};
+    matrixGroups[gName][row.fiscal_year] = (matrixGroups[gName][row.fiscal_year] || 0) + Number(row.total_amount);
+  }
+  const matrixRows = Object.entries(matrixGroups).map(([group, yearData]) => {
+    const total = Object.values(yearData).reduce((s, v) => s + v, 0);
+    return { group, ...yearData, total };
+  }).sort((a, b) => b.total - a.total);
+  const matrixTotals = {};
+  let matrixGrandTotal = 0;
+  for (const y of years) {
+    matrixTotals[y] = matrixRows.reduce((s, r) => s + (r[y] || 0), 0);
+    matrixGrandTotal += matrixTotals[y];
+  }
+
+  // ═══ PANEL 5: Dual-axis — Budget by Group ═══
+  const budgetVsData = (budgetVsSalesData?.data || [])
+    .filter(r => r.budget_cr > 0 || r.total_amount > 0)
+    .sort((a, b) => b.budget_cr - a.budget_cr);
 
   return (
-    <div className="analytics-home-grid">
-      {/* Row 1: Sales Bar + Donut side by side */}
-      <div className="analytics-home-row">
-        {/* Chart 1: Horizontal Stacked Bar - Sales by Group & FY */}
-        <div className="analytics-chart-card analytics-home-bar">
-          <h3 className="analytics-chart-title">Total Sales by Group & Fiscal Year</h3>
-          <div className="analytics-chart-legend">
-            {years.map((y, i) => (
-              <span key={y} className="analytics-legend-item">
-                <span className="analytics-legend-dot" style={{ background: COLORS[i % COLORS.length] }} />
-                FY {y}
-              </span>
-            ))}
+    <div className="home-grid">
+      {/* ─── ROW 1 ─── */}
+      <div className="home-row">
+        {/* Panel 1: Stacked Bar — Sales by Group & Fiscal Year + Total KPI */}
+        <div className="analytics-chart-card home-panel-bar">
+          <div className="home-panel-header">
+            <h3 className="analytics-chart-title" style={{ borderBottom: 'none', marginBottom: 0 }}>
+              Total sales amount by Group and Fiscal Year
+            </h3>
+            <div className="home-kpi-card">
+              <span className="home-kpi-value">{formatMillions(grandTotal)}M</span>
+              <span className="home-kpi-label">Total amount</span>
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={barChartHeight}>
-            <BarChart data={stackedBarData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-              <XAxis type="number" tickFormatter={formatIndian} tick={{ fontSize: 11 }} />
-              <YAxis
-                type="category"
-                dataKey="group"
-                width={140}
-                tick={{ fontSize: 11 }}
-                tickFormatter={v => truncLabel(v, 20)}
-              />
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={stackedBarData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="fiscal_year" tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={formatMillionsShort} tick={{ fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
-              {years.map((y, i) => (
-                <Bar key={y} dataKey={`FY${y}`} name={`FY ${y}`} stackId="a" fill={COLORS[i % COLORS.length]} radius={i === years.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {barGroups.map((g, i) => (
+                <Bar key={g} dataKey={g} stackId="a" fill={getGroupColor(g, i)} />
               ))}
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Chart 2: Donut - Total by Group */}
-        <div className="analytics-chart-card analytics-home-donut">
-          <h3 className="analytics-chart-title">Total Amount by Group</h3>
-          <ResponsiveContainer width="100%" height={barChartHeight}>
+        {/* Panel 2: Monthly trend — Sales by Year & Group */}
+        <div className="analytics-chart-card home-panel-trend">
+          <h3 className="analytics-chart-title">Total Sales amount by Year and Group</h3>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={monthlyData} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 10 }}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+                interval={Math.max(0, Math.floor(monthlyData.length / 12) - 1)}
+              />
+              <YAxis tickFormatter={formatMillionsShort} tick={{ fontSize: 11 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {trendGroups.map((g, i) => (
+                <Line
+                  key={g}
+                  type="monotone"
+                  dataKey={g}
+                  name={g}
+                  stroke={getGroupColor(g, i)}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ─── ROW 2 ─── */}
+      <div className="home-row">
+        {/* Panel 3: Pie — Total amount by Group */}
+        <div className="analytics-chart-card home-panel-pie">
+          <h3 className="analytics-chart-title">Total amount by Group</h3>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
-                data={donutData}
+                data={pieData}
                 cx="50%"
                 cy="45%"
-                innerRadius="35%"
-                outerRadius="60%"
+                outerRadius="70%"
                 dataKey="value"
-                label={renderPieLabel}
+                label={({ name, value, percent }) => {
+                  if (percent < 0.03) return '';
+                  return `${formatMillions(value)}M`;
+                }}
                 labelLine={{ strokeWidth: 1 }}
               >
-                {donutData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                {pieData.map((entry, i) => (
+                  <Cell key={i} fill={getGroupColor(entry.name, i)} />
                 ))}
               </Pie>
               <Tooltip formatter={(val) => formatFullIndian(val)} />
@@ -189,58 +256,99 @@ function HomeTab({ salesData, budgetData }) {
             </PieChart>
           </ResponsiveContainer>
         </div>
-      </div>
 
-      {/* Row 2: Budget Bar + Sales Trend side by side */}
-      <div className="analytics-home-row">
-        {/* Chart 3: Budget by Group */}
-        <div className="analytics-chart-card analytics-home-half">
-          <h3 className="analytics-chart-title">Budget (CR) by Group</h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={budgetGroupData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
-              <XAxis type="number" tickFormatter={formatIndian} tick={{ fontSize: 11 }} />
-              <YAxis
-                type="category"
-                dataKey="group"
-                width={140}
-                tick={{ fontSize: 11 }}
-                tickFormatter={v => truncLabel(v, 20)}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="budget_cr" name="Budget (CR)" radius={[0, 4, 4, 0]}>
-                {budgetGroupData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+        {/* Panel 4: Sales Matrix Table */}
+        <div className="analytics-chart-card home-panel-matrix">
+          <h3 className="analytics-chart-title">Total sales by Group Rs in Millions</h3>
+          <div className="home-matrix-wrapper">
+            <table className="home-matrix-table">
+              <thead>
+                <tr>
+                  <th className="home-matrix-group-header">Group</th>
+                  {years.map(y => (
+                    <th key={y}>FY {y}</th>
+                  ))}
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matrixRows.map((row, idx) => (
+                  <tr key={row.group}>
+                    <td className="home-matrix-group-cell">
+                      <span className="home-matrix-color-dot" style={{ background: getGroupColor(row.group, idx) }} />
+                      {row.group}
+                    </td>
+                    {years.map(y => (
+                      <td key={y} className="home-matrix-value">{formatMillions(row[y] || 0)}</td>
+                    ))}
+                    <td className="home-matrix-value home-matrix-total">{formatMillions(row.total)}</td>
+                  </tr>
                 ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+                <tr className="home-matrix-footer">
+                  <td className="home-matrix-group-cell"><strong>Total</strong></td>
+                  {years.map(y => (
+                    <td key={y} className="home-matrix-value"><strong>{formatMillions(matrixTotals[y])}</strong></td>
+                  ))}
+                  <td className="home-matrix-value home-matrix-total"><strong>{formatMillions(matrixGrandTotal)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Chart 4: Multi-line - Sales Trend by Year & Group */}
-        <div className="analytics-chart-card analytics-home-half">
-          <h3 className="analytics-chart-title">Sales Trend by Year & Group</h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={trendData} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={formatIndian} tick={{ fontSize: 11 }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
-              {trendGroups.map((g, i) => (
-                <Line
-                  key={g}
-                  type="monotone"
-                  dataKey={g}
-                  name={truncLabel(g, 16)}
-                  stroke={COLORS[i % COLORS.length]}
-                  strokeWidth={2}
-                  dot={{ r: 3, strokeWidth: 2 }}
-                  activeDot={{ r: 5 }}
+        {/* Panel 5: Dual-axis — Budget by Group */}
+        <div className="analytics-chart-card home-panel-budget">
+          <h3 className="analytics-chart-title">Budget by Group</h3>
+          {budgetVsData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={320}>
+              <ComposedChart data={budgetVsData} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis
+                  dataKey="group_name"
+                  tick={{ fontSize: 10 }}
+                  angle={-30}
+                  textAnchor="end"
+                  height={60}
                 />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+                <YAxis
+                  yAxisId="left"
+                  tickFormatter={formatMillionsShort}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: 'Budget (CR)', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#888' } }}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  tickFormatter={formatMillionsShort}
+                  tick={{ fontSize: 11 }}
+                  label={{ value: 'Total amount', angle: 90, position: 'insideRight', style: { fontSize: 11, fill: '#888' } }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Area
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="budget_cr"
+                  name="Budget (CR)"
+                  fill="#C0C0C0"
+                  fillOpacity={0.4}
+                  stroke="#A0A0A0"
+                  strokeWidth={1}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="total_amount"
+                  name="Total amount"
+                  stroke="#C00000"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: '#C00000' }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="analytics-empty" style={{ padding: '60px 0' }}>No budget data available</div>
+          )}
         </div>
       </div>
     </div>
@@ -300,7 +408,6 @@ function YoYTab({ yoyData }) {
               const groupTotal = group_totals.find(g => g.group_name === groupName);
               return (
                 <React.Fragment key={groupName}>
-                  {/* Group total row */}
                   <tr className="analytics-yoy-group-row">
                     <td className="analytics-yoy-group-name">{groupName}</td>
                     {years.map(y => (
@@ -310,7 +417,6 @@ function YoYTab({ yoyData }) {
                       </React.Fragment>
                     ))}
                   </tr>
-                  {/* Sub-group rows */}
                   {rows.filter(r => r.sub_group !== r.group_name).map((row, idx) => (
                     <tr key={idx} className="analytics-yoy-sub-row">
                       <td className="analytics-yoy-sub-name">{row.sub_group}</td>
@@ -325,7 +431,6 @@ function YoYTab({ yoyData }) {
                 </React.Fragment>
               );
             })}
-            {/* Grand total */}
             <tr className="analytics-yoy-total-row">
               <td><strong>Total</strong></td>
               {years.map(y => (
@@ -377,7 +482,7 @@ function DetailTab({ budgetData }) {
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
             <YAxis tickFormatter={formatIndian} tick={{ fontSize: 12 }} />
             <Tooltip formatter={(val) => formatFullIndian(val)} />
-            <Bar dataKey="value" name="Budget (CR)" fill="#2563eb" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="value" name="Budget (CR)" fill="#4472C4" radius={[4, 4, 0, 0]}>
               {groupData.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
@@ -395,7 +500,7 @@ function DetailTab({ budgetData }) {
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
             <YAxis tickFormatter={formatIndian} tick={{ fontSize: 12 }} />
             <Tooltip formatter={(val) => formatFullIndian(val)} />
-            <Bar dataKey="value" name="Budget (CR)" fill="#2563eb" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="value" name="Budget (CR)" fill="#4472C4" radius={[4, 4, 0, 0]}>
               {incomeData.map((_, i) => (
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
@@ -415,7 +520,7 @@ function DetailTab({ budgetData }) {
               cy="50%"
               outerRadius={100}
               dataKey="value"
-              label={renderPieLabel}
+              label={({ name, percent }) => percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''}
               labelLine={{ strokeWidth: 1 }}
             >
               {groupData.map((_, i) => (
@@ -439,7 +544,7 @@ function DetailTab({ budgetData }) {
               cy="50%"
               outerRadius={100}
               dataKey="value"
-              label={renderPieLabel}
+              label={({ name, percent }) => percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''}
               labelLine={{ strokeWidth: 1 }}
             >
               {incomeData.map((_, i) => (
@@ -465,9 +570,9 @@ function DetailTab({ budgetData }) {
               type="monotone"
               dataKey="budget_cr"
               name="Budget (CR)"
-              stroke="#2563eb"
+              stroke="#4472C4"
               strokeWidth={2}
-              dot={{ r: 5, fill: '#2563eb' }}
+              dot={{ r: 5, fill: '#4472C4' }}
               activeDot={{ r: 7 }}
             />
           </LineChart>
@@ -485,6 +590,7 @@ export default function AnalyticsDashboard() {
   const [salesData, setSalesData] = useState(null);
   const [budgetData, setBudgetData] = useState(null);
   const [yoyData, setYoyData] = useState(null);
+  const [budgetVsSalesData, setBudgetVsSalesData] = useState(null);
   const [filters, setFilters] = useState(null);
   const [selectedFilters, setSelectedFilters] = useState({});
   const [loading, setLoading] = useState(true);
@@ -503,14 +609,16 @@ export default function AnalyticsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [sales, budget, yoy] = await Promise.all([
+      const [sales, budget, yoy, bvs] = await Promise.all([
         fetchSalesSummary(selectedFilters),
         fetchBudgetSummary(selectedFilters),
-        fetchSalesYoY(selectedFilters)
+        fetchSalesYoY(selectedFilters),
+        fetchBudgetVsSales(selectedFilters)
       ]);
       setSalesData(sales);
       setBudgetData(budget);
       setYoyData(yoy);
+      setBudgetVsSalesData(bvs);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -627,7 +735,7 @@ export default function AnalyticsDashboard() {
       )}
 
       {/* Tab content */}
-      {activeTab === 'home' && <HomeTab salesData={salesData} budgetData={budgetData} />}
+      {activeTab === 'home' && <HomeTab salesData={salesData} budgetData={budgetData} budgetVsSalesData={budgetVsSalesData} />}
       {activeTab === 'yoy' && <YoYTab yoyData={yoyData} />}
       {activeTab === 'detail' && <DetailTab budgetData={budgetData} />}
     </div>

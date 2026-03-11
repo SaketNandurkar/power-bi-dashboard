@@ -80,7 +80,7 @@ router.get('/sales-summary', async (req, res, next) => {
       ORDER BY total_amount DESC
     `, params);
 
-    // Sales trend by year & group (multi-line)
+    // Sales trend by year & group (multi-line — yearly)
     const salesTrend = await pool.query(`
       SELECT sr.fiscal_year,
              COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
@@ -92,10 +92,34 @@ router.get('/sales-summary', async (req, res, next) => {
       ORDER BY sr.fiscal_year, group_name
     `, params);
 
+    // Monthly sales trend by group (for monthly line chart)
+    const monthlyTrend = await pool.query(`
+      SELECT EXTRACT(YEAR FROM sr.invoice_date)::int AS year,
+             EXTRACT(MONTH FROM sr.invoice_date)::int AS month,
+             COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
+             SUM(sr.total) AS total_amount
+      FROM curated.sales_register sr
+      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+      ${where}
+      GROUP BY EXTRACT(YEAR FROM sr.invoice_date), EXTRACT(MONTH FROM sr.invoice_date),
+               COALESCE(gm.group_name, sr.bill_to_name)
+      ORDER BY year, month, group_name
+    `, params);
+
+    // Grand total for KPI card
+    const grandTotal = await pool.query(`
+      SELECT SUM(sr.total) AS total_amount
+      FROM curated.sales_register sr
+      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+      ${where}
+    `, params);
+
     res.json({
       sales_by_group_year: salesByGroupYear.rows,
       sales_by_group: salesByGroup.rows,
-      sales_trend: salesTrend.rows
+      sales_trend: salesTrend.rows,
+      sales_monthly_trend: monthlyTrend.rows,
+      grand_total: Number(grandTotal.rows[0]?.total_amount || 0)
     });
   } catch (err) {
     logger.error('Analytics sales-summary failed', { error: err.message });
@@ -145,6 +169,80 @@ router.get('/budget-summary', async (req, res, next) => {
     });
   } catch (err) {
     logger.error('Analytics budget-summary failed', { error: err.message });
+    next(err);
+  }
+});
+
+/**
+ * GET /api/analytics/budget-vs-sales
+ * Returns combined budget + sales by group for dual-axis chart.
+ */
+router.get('/budget-vs-sales', async (req, res, next) => {
+  try {
+    const groupFilter = req.query.group;
+    const yearFilter = req.query.year;
+
+    // Budget by group
+    const budgetConditions = [];
+    const budgetParams = [];
+    let bidx = 1;
+    if (yearFilter) {
+      budgetConditions.push(`year = $${bidx++}`);
+      budgetParams.push(Number(yearFilter));
+    }
+    if (groupFilter) {
+      budgetConditions.push(`group_name = $${bidx++}`);
+      budgetParams.push(groupFilter);
+    }
+    const budgetWhere = budgetConditions.length ? 'WHERE ' + budgetConditions.join(' AND ') : '';
+
+    const budgetRes = await pool.query(`
+      SELECT group_name, SUM(budget_cr) AS budget_cr
+      FROM curated.budget_report
+      ${budgetWhere}
+      GROUP BY group_name
+      ORDER BY group_name
+    `, budgetParams);
+
+    // Sales by group (same groups as budget)
+    const salesConditions = [];
+    const salesParams = [];
+    let sidx = 1;
+    if (yearFilter) {
+      salesConditions.push(`sr.fiscal_year = $${sidx++}`);
+      salesParams.push(Number(yearFilter));
+    }
+    if (groupFilter) {
+      salesConditions.push(`COALESCE(gm.group_name, sr.bill_to_name) = $${sidx++}`);
+      salesParams.push(groupFilter);
+    }
+    const salesWhere = salesConditions.length ? 'WHERE ' + salesConditions.join(' AND ') : '';
+
+    const salesRes = await pool.query(`
+      SELECT COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
+             SUM(sr.total) AS total_amount
+      FROM curated.sales_register sr
+      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+      ${salesWhere}
+      GROUP BY COALESCE(gm.group_name, sr.bill_to_name)
+      ORDER BY group_name
+    `, salesParams);
+
+    // Merge budget + sales by group_name
+    const mergedMap = {};
+    for (const r of budgetRes.rows) {
+      mergedMap[r.group_name] = { group_name: r.group_name, budget_cr: Number(r.budget_cr), total_amount: 0 };
+    }
+    for (const r of salesRes.rows) {
+      if (!mergedMap[r.group_name]) {
+        mergedMap[r.group_name] = { group_name: r.group_name, budget_cr: 0, total_amount: 0 };
+      }
+      mergedMap[r.group_name].total_amount = Number(r.total_amount);
+    }
+
+    res.json({ data: Object.values(mergedMap) });
+  } catch (err) {
+    logger.error('Analytics budget-vs-sales failed', { error: err.message });
     next(err);
   }
 });

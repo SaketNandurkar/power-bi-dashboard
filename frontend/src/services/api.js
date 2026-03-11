@@ -93,6 +93,13 @@ export async function fetchSalesYoY(filters) {
   return data;
 }
 
+export async function fetchBudgetVsSales(filters) {
+  const response = await fetch(`${API_URL}/api/analytics/budget-vs-sales${buildQueryString(filters)}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to fetch budget vs sales');
+  return data;
+}
+
 export async function fetchAnalyticsFilters() {
   const response = await fetch(`${API_URL}/api/analytics/filters`);
   const data = await response.json();

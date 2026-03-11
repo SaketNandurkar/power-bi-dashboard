@@ -886,32 +886,149 @@ body {
   grid-column: 1 / -1;
 }
 
-/* ── HOME Tab Layout ── */
-.analytics-home-grid {
+/* ── HOME Tab 6-Panel Layout (Power BI) ── */
+.home-grid {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
 }
 
-.analytics-home-row {
+.home-row {
   display: flex;
   gap: var(--spacing-lg);
   align-items: stretch;
 }
 
-.analytics-home-bar {
-  flex: 3;
-  min-width: 0;
-}
-
-.analytics-home-donut {
+/* Row 1: Stacked Bar (40%) + Monthly Trend (60%) */
+.home-panel-bar {
   flex: 2;
   min-width: 0;
 }
 
-.analytics-home-half {
-  flex: 1;
+.home-panel-trend {
+  flex: 3;
   min-width: 0;
+}
+
+/* Row 2: Pie (25%) + Matrix (35%) + Budget (40%) */
+.home-panel-pie {
+  flex: 5;
+  min-width: 0;
+}
+
+.home-panel-matrix {
+  flex: 7;
+  min-width: 0;
+}
+
+.home-panel-budget {
+  flex: 8;
+  min-width: 0;
+}
+
+/* ── KPI Card inside Panel 1 ── */
+.home-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.home-kpi-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-200);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  min-width: 120px;
+}
+
+.home-kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-primary-800);
+  line-height: 1.2;
+}
+
+.home-kpi-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-primary-600);
+  margin-top: 2px;
+}
+
+/* ── Sales Matrix Table ── */
+.home-matrix-wrapper {
+  overflow-x: auto;
+}
+
+.home-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.home-matrix-table th,
+.home-matrix-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-gray-100);
+  white-space: nowrap;
+}
+
+.home-matrix-table th {
+  background: var(--color-gray-50);
+  font-weight: 600;
+  color: var(--color-gray-700);
+  text-align: right;
+  border-bottom: 2px solid var(--color-gray-200);
+  font-size: 11px;
+}
+
+.home-matrix-group-header {
+  text-align: left !important;
+  min-width: 120px;
+}
+
+.home-matrix-group-cell {
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-gray-800);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.home-matrix-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.home-matrix-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-gray-700);
+}
+
+.home-matrix-total {
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.home-matrix-footer {
+  background: var(--color-gray-50);
+  border-top: 2px solid var(--color-gray-300);
+}
+
+.home-matrix-footer td {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .analytics-chart-title {
@@ -1042,8 +1159,8 @@ body {
 }
 
 /* ── Responsive ── */
-@media (max-width: 1100px) {
-  .analytics-home-row {
+@media (max-width: 1200px) {
+  .home-row {
     flex-direction: column;
   }
 }
