@@ -886,27 +886,156 @@ body {
   grid-column: 1 / -1;
 }
 
-/* ── HOME Tab 6-Panel Layout (Power BI) ── */
+/* ══════════════════════════════════════════════════════════════
+   POWER BI PANEL SYSTEM
+   ══════════════════════════════════════════════════════════════ */
+
+/* Panel wrapper */
+.pbi-panel {
+  background: white;
+  border: 1px solid #d4d4d4;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Blue header bar */
+.pbi-panel-header {
+  background: linear-gradient(135deg, #4472C4 0%, #3461B3 100%);
+  color: white;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+}
+
+.pbi-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.pbi-panel-header-right {
+  flex-shrink: 0;
+}
+
+.pbi-panel-body {
+  padding: 12px 14px;
+}
+
+/* KPI badge inside panel header */
+.pbi-kpi-badge {
+  text-align: right;
+  line-height: 1.2;
+}
+
+.pbi-kpi-number {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.pbi-kpi-text {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* Legend row */
+.pbi-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.pbi-legend-prefix {
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
+}
+
+.pbi-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #555;
+}
+
+.pbi-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Tooltip */
+.pbi-tooltip {
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+}
+
+.pbi-tooltip-label {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.pbi-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.pbi-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pbi-tooltip-name {
+  color: #666;
+}
+
+.pbi-tooltip-value {
+  font-weight: 600;
+  color: #333;
+  margin-left: auto;
+}
+
+/* ── HOME Grid Layout ── */
 .home-grid {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: 16px;
 }
 
 .home-row {
   display: flex;
-  gap: var(--spacing-lg);
+  gap: 16px;
   align-items: stretch;
 }
 
-/* Row 1: Stacked Bar (40%) + Monthly Trend (60%) */
+/* Row 1: Bar (35%) + Trend (65%) */
 .home-panel-bar {
-  flex: 2;
+  flex: 7;
   min-width: 0;
 }
 
 .home-panel-trend {
-  flex: 3;
+  flex: 13;
   min-width: 0;
 }
 
@@ -926,109 +1055,70 @@ body {
   min-width: 0;
 }
 
-/* ── KPI Card inside Panel 1 ── */
-.home-panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-gray-100);
-}
-
-.home-kpi-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  background: var(--color-primary-50);
-  border: 1px solid var(--color-primary-200);
-  border-radius: var(--radius-md);
-  padding: 8px 14px;
-  min-width: 120px;
-}
-
-.home-kpi-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-primary-800);
-  line-height: 1.2;
-}
-
-.home-kpi-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-primary-600);
-  margin-top: 2px;
-}
-
-/* ── Sales Matrix Table ── */
-.home-matrix-wrapper {
+/* ── Power BI Matrix Table (orange accents) ── */
+.pbi-matrix-scroll {
   overflow-x: auto;
 }
 
-.home-matrix-table {
+.pbi-matrix {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
 }
 
-.home-matrix-table th,
-.home-matrix-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-gray-100);
+.pbi-matrix th {
+  padding: 10px 12px;
+  text-align: right;
+  font-weight: 700;
+  color: #333;
+  border-bottom: 3px solid #ED7D31;
+  font-size: 13px;
+  background: white;
+}
+
+.pbi-matrix .pbi-matrix-th-group {
+  text-align: left;
+  min-width: 110px;
+}
+
+.pbi-matrix-row td {
+  padding: 10px 12px;
+  border-bottom: 2px solid #ED7D31;
+}
+
+.pbi-matrix-group {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #333;
   white-space: nowrap;
 }
 
-.home-matrix-table th {
-  background: var(--color-gray-50);
-  font-weight: 600;
-  color: var(--color-gray-700);
-  text-align: right;
-  border-bottom: 2px solid var(--color-gray-200);
-  font-size: 11px;
-}
-
-.home-matrix-group-header {
-  text-align: left !important;
-  min-width: 120px;
-}
-
-.home-matrix-group-cell {
-  text-align: left;
-  font-weight: 500;
-  color: var(--color-gray-800);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.home-matrix-color-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.pbi-matrix-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
-.home-matrix-value {
+.pbi-matrix-val {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  color: var(--color-gray-700);
+  color: #444;
+  white-space: nowrap;
 }
 
-.home-matrix-total {
-  font-weight: 600;
-  color: var(--color-gray-900);
+.pbi-matrix-total-row td {
+  padding: 12px;
+  border-top: 3px solid #ED7D31;
+  border-bottom: none;
+  background: #FFF8F0;
 }
 
-.home-matrix-footer {
-  background: var(--color-gray-50);
-  border-top: 2px solid var(--color-gray-300);
-}
-
-.home-matrix-footer td {
-  padding-top: 10px;
-  padding-bottom: 10px;
+.pbi-matrix-total-val {
+  color: #C05000;
 }
 
 .analytics-chart-title {
@@ -1040,36 +1130,7 @@ body {
   border-bottom: 1px solid var(--color-gray-100);
 }
 
-.analytics-chart-legend {
-  display: flex;
-  gap: var(--spacing-md);
-  margin-bottom: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-
-.analytics-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--color-gray-600);
-}
-
-.analytics-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.analytics-tooltip {
-  background: white;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  box-shadow: var(--shadow-md);
-  font-size: 13px;
-}
+/* (legacy legend/tooltip styles removed — using .pbi-* classes now) */
 
 .analytics-loading,
 .analytics-empty {

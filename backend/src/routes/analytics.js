@@ -4,28 +4,73 @@ const logger = require('../utils/logger');
 
 const router = express.Router();
 
-/**
- * Helper: build WHERE clause fragments from query params.
- */
-function buildFilters(query) {
+// ══════════════════════════════════════════════════════════════
+// GROUP MAPPING
+// ══════════════════════════════════════════════════════════════
+// CTE that assigns a display group to each sales_register row.
+// Priority: customer_group_mapping table (bill_to code) > name-based CASE fallback.
+// The 5 groups match the Power BI Output sheet:
+//   APPL, Waymade PLC, Navinta LLC, CMO sales, scrap
+const SALES_GROUP_CTE = `
+  sales_grouped AS (
+    SELECT sr.invoice_no, sr.billing_type, sr.billing_type_description,
+           sr.invoice_date, sr.bill_to, sr.bill_to_name,
+           sr.fiscal_year, sr.billing_quantity, sr.net_value,
+           sr.tax_amount, sr.total,
+      COALESCE(
+        gm.group_name,
+        CASE
+          WHEN sr.bill_to_name ILIKE '%APPL%' THEN 'APPL'
+          WHEN sr.bill_to_name ILIKE '%Waymade%' THEN 'Waymade PLC'
+          WHEN sr.bill_to_name ILIKE '%Navinta%' THEN 'Navinta LLC'
+          WHEN sr.bill_to_name ILIKE '%Krufren%' THEN 'CMO sales'
+          WHEN sr.bill_to_name ILIKE '%Reine%' THEN 'CMO sales'
+          WHEN sr.bill_to_name ILIKE '%Samrudh%' THEN 'CMO sales'
+          ELSE 'scrap'
+        END
+      ) AS group_name
+    FROM curated.sales_register sr
+    LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+  )
+`;
+
+// SQL CASE to map budget_report.group_name → short display name
+const BUDGET_DISPLAY = `
+  CASE group_name
+    WHEN 'CMO Sales for Mfg our FG' THEN 'CMO sales'
+    WHEN 'Scrap & Others Sales' THEN 'scrap'
+    ELSE group_name
+  END
+`;
+
+// Reverse-map: short display name → actual budget_report.group_name
+const DISPLAY_TO_BUDGET = {
+  'CMO sales': 'CMO Sales for Mfg our FG',
+  'scrap': 'Scrap & Others Sales'
+};
+
+// ══════════════════════════════════════════════════════════════
+// FILTER BUILDERS
+// ══════════════════════════════════════════════════════════════
+function buildSalesFilters(query) {
   const conditions = [];
   const params = [];
   let idx = 1;
 
   if (query.year) {
-    conditions.push(`fiscal_year = $${idx++}`);
+    conditions.push(`sg.fiscal_year = $${idx++}`);
     params.push(Number(query.year));
   }
   if (query.group) {
-    conditions.push(`COALESCE(gm.group_name, sr.bill_to_name) = $${idx++}`);
+    conditions.push(`sg.group_name = $${idx++}`);
     params.push(query.group);
   }
   if (query.date_from) {
-    conditions.push(`invoice_date >= $${idx++}`);
+    conditions.push(`sg.invoice_date >= $${idx++}`);
     params.push(query.date_from);
   }
   if (query.date_to) {
-    conditions.push(`invoice_date <= $${idx++}`);
+    conditions.push(`sg.invoice_date <= $${idx++}`);
     params.push(query.date_to);
   }
 
@@ -42,12 +87,18 @@ function buildBudgetFilters(query) {
     params.push(Number(query.year));
   }
   if (query.group) {
+    // Reverse-map short name → actual budget group_name
+    const actual = DISPLAY_TO_BUDGET[query.group] || query.group;
     conditions.push(`group_name = $${idx++}`);
-    params.push(query.group);
+    params.push(actual);
   }
 
   return { where: conditions.length ? 'WHERE ' + conditions.join(' AND ') : '', params };
 }
+
+// ══════════════════════════════════════════════════════════════
+// ENDPOINTS
+// ══════════════════════════════════════════════════════════════
 
 /**
  * GET /api/analytics/sales-summary
@@ -55,69 +106,52 @@ function buildBudgetFilters(query) {
  */
 router.get('/sales-summary', async (req, res, next) => {
   try {
-    const { where, params } = buildFilters(req.query);
+    const { where, params } = buildSalesFilters(req.query);
 
-    // Sales by group & fiscal year (stacked bar)
+    // Sales by group & fiscal year (grouped bar)
     const salesByGroupYear = await pool.query(`
-      SELECT COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
-             sr.fiscal_year,
-             SUM(sr.total) AS total_amount
-      FROM curated.sales_register sr
-      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+      WITH ${SALES_GROUP_CTE}
+      SELECT sg.group_name, sg.fiscal_year, SUM(sg.total) AS total_amount
+      FROM sales_grouped sg
       ${where}
-      GROUP BY COALESCE(gm.group_name, sr.bill_to_name), sr.fiscal_year
-      ORDER BY group_name, sr.fiscal_year
+      GROUP BY sg.group_name, sg.fiscal_year
+      ORDER BY sg.group_name, sg.fiscal_year
     `, params);
 
-    // Total by group (donut)
+    // Total by group (pie chart)
     const salesByGroup = await pool.query(`
-      SELECT COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
-             SUM(sr.total) AS total_amount
-      FROM curated.sales_register sr
-      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+      WITH ${SALES_GROUP_CTE}
+      SELECT sg.group_name, SUM(sg.total) AS total_amount
+      FROM sales_grouped sg
       ${where}
-      GROUP BY COALESCE(gm.group_name, sr.bill_to_name)
+      GROUP BY sg.group_name
       ORDER BY total_amount DESC
     `, params);
 
-    // Sales trend by year & group (multi-line — yearly)
-    const salesTrend = await pool.query(`
-      SELECT sr.fiscal_year,
-             COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
-             SUM(sr.total) AS total_amount
-      FROM curated.sales_register sr
-      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
-      ${where}
-      GROUP BY sr.fiscal_year, COALESCE(gm.group_name, sr.bill_to_name)
-      ORDER BY sr.fiscal_year, group_name
-    `, params);
-
-    // Monthly sales trend by group (for monthly line chart)
+    // Monthly sales trend by group (line chart — monthly x-axis)
     const monthlyTrend = await pool.query(`
-      SELECT EXTRACT(YEAR FROM sr.invoice_date)::int AS year,
-             EXTRACT(MONTH FROM sr.invoice_date)::int AS month,
-             COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
-             SUM(sr.total) AS total_amount
-      FROM curated.sales_register sr
-      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+      WITH ${SALES_GROUP_CTE}
+      SELECT EXTRACT(YEAR FROM sg.invoice_date)::int AS year,
+             EXTRACT(MONTH FROM sg.invoice_date)::int AS month,
+             sg.group_name,
+             SUM(sg.total) AS total_amount
+      FROM sales_grouped sg
       ${where}
-      GROUP BY EXTRACT(YEAR FROM sr.invoice_date), EXTRACT(MONTH FROM sr.invoice_date),
-               COALESCE(gm.group_name, sr.bill_to_name)
-      ORDER BY year, month, group_name
+      GROUP BY EXTRACT(YEAR FROM sg.invoice_date), EXTRACT(MONTH FROM sg.invoice_date), sg.group_name
+      ORDER BY year, month, sg.group_name
     `, params);
 
     // Grand total for KPI card
     const grandTotal = await pool.query(`
-      SELECT SUM(sr.total) AS total_amount
-      FROM curated.sales_register sr
-      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
+      WITH ${SALES_GROUP_CTE}
+      SELECT SUM(sg.total) AS total_amount
+      FROM sales_grouped sg
       ${where}
     `, params);
 
     res.json({
       sales_by_group_year: salesByGroupYear.rows,
       sales_by_group: salesByGroup.rows,
-      sales_trend: salesTrend.rows,
       sales_monthly_trend: monthlyTrend.rows,
       grand_total: Number(grandTotal.rows[0]?.total_amount || 0)
     });
@@ -129,22 +163,20 @@ router.get('/sales-summary', async (req, res, next) => {
 
 /**
  * GET /api/analytics/budget-summary
- * Returns aggregated budget data for HOME + DETAIL page charts.
+ * Returns aggregated budget data for DETAIL page charts.
  */
 router.get('/budget-summary', async (req, res, next) => {
   try {
     const { where, params } = buildBudgetFilters(req.query);
 
-    // Budget by group
     const budgetByGroup = await pool.query(`
-      SELECT group_name, SUM(budget_cr) AS budget_cr
+      SELECT ${BUDGET_DISPLAY} AS group_name, SUM(budget_cr) AS budget_cr
       FROM curated.budget_report
       ${where}
-      GROUP BY group_name
+      GROUP BY ${BUDGET_DISPLAY}
       ORDER BY budget_cr DESC
     `, params);
 
-    // Budget by income group
     const budgetByIncomeGroup = await pool.query(`
       SELECT income_group, SUM(budget_cr) AS budget_cr
       FROM curated.budget_report
@@ -153,7 +185,6 @@ router.get('/budget-summary', async (req, res, next) => {
       ORDER BY budget_cr DESC
     `, params);
 
-    // Budget by month
     const budgetByMonth = await pool.query(`
       SELECT zmonth, SUM(budget_cr) AS budget_cr
       FROM curated.budget_report
@@ -175,60 +206,52 @@ router.get('/budget-summary', async (req, res, next) => {
 
 /**
  * GET /api/analytics/budget-vs-sales
- * Returns combined budget + sales by group for dual-axis chart.
+ * Returns combined budget + sales by group for the dual-axis chart.
+ * Both sides use short display names so they merge correctly.
  */
 router.get('/budget-vs-sales', async (req, res, next) => {
   try {
-    const groupFilter = req.query.group;
     const yearFilter = req.query.year;
+    const groupFilter = req.query.group;
 
-    // Budget by group
-    const budgetConditions = [];
-    const budgetParams = [];
-    let bidx = 1;
-    if (yearFilter) {
-      budgetConditions.push(`year = $${bidx++}`);
-      budgetParams.push(Number(yearFilter));
-    }
+    // Budget by group (mapped to short display name)
+    const bCond = [];
+    const bParams = [];
+    let bi = 1;
+    if (yearFilter) { bCond.push(`year = $${bi++}`); bParams.push(Number(yearFilter)); }
     if (groupFilter) {
-      budgetConditions.push(`group_name = $${bidx++}`);
-      budgetParams.push(groupFilter);
+      const actual = DISPLAY_TO_BUDGET[groupFilter] || groupFilter;
+      bCond.push(`group_name = $${bi++}`);
+      bParams.push(actual);
     }
-    const budgetWhere = budgetConditions.length ? 'WHERE ' + budgetConditions.join(' AND ') : '';
+    const bWhere = bCond.length ? 'WHERE ' + bCond.join(' AND ') : '';
 
     const budgetRes = await pool.query(`
-      SELECT group_name, SUM(budget_cr) AS budget_cr
+      SELECT ${BUDGET_DISPLAY} AS group_name, SUM(budget_cr) AS budget_cr
       FROM curated.budget_report
-      ${budgetWhere}
-      GROUP BY group_name
-      ORDER BY group_name
-    `, budgetParams);
+      ${bWhere}
+      GROUP BY ${BUDGET_DISPLAY}
+      ORDER BY budget_cr DESC
+    `, bParams);
 
-    // Sales by group (same groups as budget)
-    const salesConditions = [];
-    const salesParams = [];
-    let sidx = 1;
-    if (yearFilter) {
-      salesConditions.push(`sr.fiscal_year = $${sidx++}`);
-      salesParams.push(Number(yearFilter));
-    }
-    if (groupFilter) {
-      salesConditions.push(`COALESCE(gm.group_name, sr.bill_to_name) = $${sidx++}`);
-      salesParams.push(groupFilter);
-    }
-    const salesWhere = salesConditions.length ? 'WHERE ' + salesConditions.join(' AND ') : '';
+    // Sales by group (using CTE)
+    const sCond = [];
+    const sParams = [];
+    let si = 1;
+    if (yearFilter) { sCond.push(`sg.fiscal_year = $${si++}`); sParams.push(Number(yearFilter)); }
+    if (groupFilter) { sCond.push(`sg.group_name = $${si++}`); sParams.push(groupFilter); }
+    const sWhere = sCond.length ? 'WHERE ' + sCond.join(' AND ') : '';
 
     const salesRes = await pool.query(`
-      SELECT COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
-             SUM(sr.total) AS total_amount
-      FROM curated.sales_register sr
-      LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
-      ${salesWhere}
-      GROUP BY COALESCE(gm.group_name, sr.bill_to_name)
-      ORDER BY group_name
-    `, salesParams);
+      WITH ${SALES_GROUP_CTE}
+      SELECT sg.group_name, SUM(sg.total) AS total_amount
+      FROM sales_grouped sg
+      ${sWhere}
+      GROUP BY sg.group_name
+      ORDER BY total_amount DESC
+    `, sParams);
 
-    // Merge budget + sales by group_name
+    // Merge by group_name (both use short display names now)
     const mergedMap = {};
     for (const r of budgetRes.rows) {
       mergedMap[r.group_name] = { group_name: r.group_name, budget_cr: Number(r.budget_cr), total_amount: 0 };
@@ -259,29 +282,21 @@ router.get('/sales-yoy', async (req, res, next) => {
 
     if (groupFilter) {
       params.push(groupFilter);
-      groupWhere = `WHERE COALESCE(gm.group_name, sr.bill_to_name) = $1`;
+      groupWhere = `WHERE sg.group_name = $1`;
     }
 
     const result = await pool.query(`
-      WITH grouped_sales AS (
-        SELECT COALESCE(gm.group_name, sr.bill_to_name) AS group_name,
-               sr.bill_to_name AS sub_group,
-               sr.fiscal_year,
-               SUM(sr.total) AS total_amount
-        FROM curated.sales_register sr
-        LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
-        ${groupWhere}
-        GROUP BY COALESCE(gm.group_name, sr.bill_to_name), sr.bill_to_name, sr.fiscal_year
-      )
-      SELECT group_name,
-             sub_group,
-             fiscal_year,
-             total_amount
-      FROM grouped_sales
-      ORDER BY group_name, sub_group, fiscal_year
+      WITH ${SALES_GROUP_CTE}
+      SELECT sg.group_name,
+             sg.bill_to_name AS sub_group,
+             sg.fiscal_year,
+             SUM(sg.total) AS total_amount
+      FROM sales_grouped sg
+      ${groupWhere}
+      GROUP BY sg.group_name, sg.bill_to_name, sg.fiscal_year
+      ORDER BY sg.group_name, sg.bill_to_name, sg.fiscal_year
     `, params);
 
-    // Pivot the data: collect all fiscal years and build matrix
     const years = [...new Set(result.rows.map(r => r.fiscal_year))].sort();
     const matrixMap = {};
 
@@ -293,7 +308,6 @@ router.get('/sales-yoy', async (req, res, next) => {
       matrixMap[key].years[row.fiscal_year] = Number(row.total_amount);
     }
 
-    // Compute YoY percentages
     const matrix = Object.values(matrixMap).map(entry => {
       const row = { group_name: entry.group_name, sub_group: entry.sub_group };
       for (const year of years) {
@@ -308,7 +322,6 @@ router.get('/sales-yoy', async (req, res, next) => {
       return row;
     });
 
-    // Also compute group-level totals
     const groupTotals = {};
     for (const row of result.rows) {
       if (!groupTotals[row.group_name]) groupTotals[row.group_name] = {};
@@ -339,19 +352,23 @@ router.get('/sales-yoy', async (req, res, next) => {
 
 /**
  * GET /api/analytics/filters
- * Returns available filter values.
+ * Returns available filter values (short display names).
  */
 router.get('/filters', async (req, res, next) => {
   try {
     const [yearsRes, groupsRes, budgetGroupsRes] = await Promise.all([
       pool.query('SELECT DISTINCT fiscal_year FROM curated.sales_register ORDER BY fiscal_year'),
       pool.query(`
-        SELECT DISTINCT COALESCE(gm.group_name, sr.bill_to_name) AS group_name
-        FROM curated.sales_register sr
-        LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
-        ORDER BY group_name
+        WITH ${SALES_GROUP_CTE}
+        SELECT DISTINCT sg.group_name
+        FROM sales_grouped sg
+        ORDER BY sg.group_name
       `),
-      pool.query('SELECT DISTINCT group_name FROM curated.budget_report ORDER BY group_name')
+      pool.query(`
+        SELECT DISTINCT ${BUDGET_DISPLAY} AS group_name
+        FROM curated.budget_report
+        ORDER BY group_name
+      `)
     ]);
 
     res.json({
