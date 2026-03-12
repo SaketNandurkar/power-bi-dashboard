@@ -12,7 +12,11 @@ const statusRouter = require('./routes/status');
 const sapRouter = require('./routes/sap');
 const exportRouter = require('./routes/export');
 const analyticsRouter = require('./routes/analytics');
+const authRouter = require('./routes/auth');
+const usersRouter = require('./routes/users');
+const { authenticate, authorize } = require('./middleware/authMiddleware');
 const { startScheduler } = require('./services/sapScheduler');
+const { seedAdmin } = require('./utils/seedAdmin');
 
 const app = express();
 
@@ -25,7 +29,7 @@ app.use(helmet({
 // CORS
 app.use(cors({
   origin: config.corsOrigins,
-  methods: ['GET', 'POST', 'PUT'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 86400
 }));
@@ -62,11 +66,13 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '1mb' }));
 
 // Routes
-app.use('/api/status', statusRouter);
-app.use('/api/sap', sapRouter);
-app.use('/api/export', exportRouter);
-app.use('/api/analytics', analyticsRouter);
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.use('/api/auth', authRouter);                                       // public
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() })); // public
+app.use('/api/status', authenticate, statusRouter);
+app.use('/api/analytics', authenticate, analyticsRouter);
+app.use('/api/sap', authenticate, authorize('ADMIN'), sapRouter);
+app.use('/api/export', authenticate, authorize('ADMIN'), exportRouter);
+app.use('/api/users', authenticate, authorize('ADMIN'), usersRouter);
 
 // Serve frontend static files (production: backend serves the React build)
 const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'build');
@@ -89,4 +95,5 @@ app.listen(config.port, '0.0.0.0', () => {
     cors: config.corsOrigins
   });
   startScheduler();
+  seedAdmin();
 });

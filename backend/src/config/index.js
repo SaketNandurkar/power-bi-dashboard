@@ -19,6 +19,10 @@ module.exports = {
   sapSyncEnabled: process.env.SAP_SYNC_ENABLED !== 'false',
   sapRequestTimeout: parseInt(process.env.SAP_REQUEST_TIMEOUT, 10) || 120000,
 
+  // JWT Authentication
+  jwtSecret: process.env.JWT_SECRET || 'apothecon-dashboard-jwt-secret-2026',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
+
   // CSV Export
   csvExportPath: process.env.CSV_EXPORT_PATH || '/data/powerbi_exports'
 };

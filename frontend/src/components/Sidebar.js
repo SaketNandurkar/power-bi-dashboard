@@ -4,10 +4,10 @@ import {
   SyncIcon,
   ChartIcon,
   ActivityIcon,
-  SettingsIcon
+  UsersIcon
 } from './Icons';
 
-export default function Sidebar({ activeView, onViewChange }) {
+export default function Sidebar({ activeView, onViewChange, user }) {
   const navItems = [
     {
       id: 'dashboard',
@@ -32,19 +32,33 @@ export default function Sidebar({ activeView, onViewChange }) {
       label: 'Analytics',
       icon: ChartIcon,
       section: 'insights'
+    },
+    {
+      id: 'users',
+      label: 'User Management',
+      icon: UsersIcon,
+      section: 'admin'
     }
   ];
 
   const sections = {
     main: 'Overview',
     data: 'Data Management',
-    insights: 'Insights'
+    insights: 'Insights',
+    admin: 'Administration'
   };
 
-  const groupedItems = Object.entries(sections).map(([sectionId, sectionLabel]) => ({
-    label: sectionLabel,
-    items: navItems.filter(item => item.section === sectionId)
-  }));
+  // Only show admin section items if user is ADMIN
+  const filteredItems = navItems.filter(item =>
+    item.section !== 'admin' || user?.role === 'ADMIN'
+  );
+
+  const groupedItems = Object.entries(sections)
+    .map(([sectionId, sectionLabel]) => ({
+      label: sectionLabel,
+      items: filteredItems.filter(item => item.section === sectionId)
+    }))
+    .filter(section => section.items.length > 0);
 
   return (
     <div className="app-sidebar">
@@ -78,15 +92,37 @@ export default function Sidebar({ activeView, onViewChange }) {
 
       {/* Footer */}
       <div className="sidebar-footer">
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '8px'
-        }}>
-          <SettingsIcon size={16} color="var(--color-gray-400)" />
-          <span style={{ color: 'var(--color-gray-600)', fontWeight: 600 }}>Settings</span>
-        </div>
+        {user && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '8px'
+          }}>
+            <div style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: 'var(--color-primary-100)',
+              color: 'var(--color-primary-700)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: 700
+            }}>
+              {user.full_name?.charAt(0)?.toUpperCase() || 'A'}
+            </div>
+            <div>
+              <div style={{ color: 'var(--color-gray-600)', fontWeight: 600, fontSize: '12px' }}>
+                {user.full_name}
+              </div>
+              <div style={{ color: 'var(--color-gray-400)', fontSize: '10px', textTransform: 'uppercase' }}>
+                {user.role.replace('_', ' ')}
+              </div>
+            </div>
+          </div>
+        )}
         <div style={{ color: 'var(--color-gray-400)' }}>
           Version 1.0.0
         </div>

@@ -4,11 +4,29 @@ import {
   ComposedChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList
 } from 'recharts';
-import { RefreshIcon } from './Icons';
+import { RefreshIcon, FileIcon } from './Icons';
 import {
-  fetchSalesSummary, fetchBudgetSummary, fetchSalesYoY,
+  fetchSalesSummary, fetchBudgetSummary,
   fetchBudgetVsSales, fetchBankSummary, fetchAnalyticsFilters, fetchSapStatus
 } from '../services/api';
+
+// ══════════════════════════════════════════════════════
+// ROLE-BASED TAB ACCESS
+// ══════════════════════════════════════════════════════
+const ALL_TABS = [
+  { key: 'sales', label: 'SALES' },
+  { key: 'budget', label: 'BUDGET' },
+  { key: 'accounts', label: 'ACCOUNTS' },
+  { key: 'bank', label: 'BANK' }
+];
+
+const ROLE_TABS = {
+  ADMIN: ['sales', 'budget', 'accounts', 'bank'],
+  SALES_MANAGER: ['sales'],
+  ACCOUNTS_MANAGER: ['accounts'],
+  BANK_MANAGER: ['bank'],
+  CEO_CFO: ['sales', 'budget', 'accounts', 'bank']
+};
 
 // ══════════════════════════════════════════════════════
 // COLOR PALETTE — Power BI theme
@@ -437,98 +455,24 @@ function HomeTab({ salesData, budgetVsSalesData }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// YoY TAB
+// ACCOUNTS TAB (Placeholder)
 // ═══════════════════════════════════════════════════════════
-function YoYTab({ yoyData }) {
-  if (!yoyData) return <div className="analytics-loading">Loading YoY data...</div>;
-
-  const { years, matrix, group_totals } = yoyData;
-  if (!years?.length) return <div className="analytics-empty">No YoY data available</div>;
-
-  const grouped = {};
-  for (const row of matrix) {
-    if (!grouped[row.group_name]) grouped[row.group_name] = [];
-    grouped[row.group_name].push(row);
-  }
-
-  const grandTotal = {};
-  for (const y of years) {
-    grandTotal[`year_${y}_total`] = group_totals.reduce((sum, g) => sum + (g[`year_${y}_total`] || 0), 0);
-  }
-  for (const y of years) {
-    const prev = grandTotal[`year_${y - 1}_total`];
-    grandTotal[`year_${y}_yoy`] = prev && prev > 0
-      ? ((grandTotal[`year_${y}_total`] - prev) / prev * 100).toFixed(2)
-      : '0.00';
-  }
-
+function AccountsTab() {
   return (
     <div className="analytics-chart-card analytics-chart-full">
-      <h3 className="analytics-chart-title">Year-over-Year Sales Comparison</h3>
-      <div className="analytics-table-wrapper">
-        <table className="analytics-yoy-table">
-          <thead>
-            <tr>
-              <th rowSpan={2} className="analytics-yoy-header-group">Fiscal Year</th>
-              {years.map(y => (
-                <th key={y} colSpan={2} className="analytics-yoy-header-year">{y}</th>
-              ))}
-            </tr>
-            <tr>
-              {years.map(y => (
-                <React.Fragment key={y}>
-                  <th>Sum of Total Amount</th>
-                  <th>YoY %</th>
-                </React.Fragment>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(grouped).map(([groupName, rows]) => {
-              const groupTotal = group_totals.find(g => g.group_name === groupName);
-              return (
-                <React.Fragment key={groupName}>
-                  <tr className="analytics-yoy-group-row">
-                    <td className="analytics-yoy-group-name">{groupName}</td>
-                    {years.map(y => (
-                      <React.Fragment key={y}>
-                        <td className="analytics-yoy-amount">{formatFullIndian(groupTotal?.[`year_${y}_total`])}</td>
-                        <td className="analytics-yoy-pct">{groupTotal?.[`year_${y}_yoy`] || '0.00'}%</td>
-                      </React.Fragment>
-                    ))}
-                  </tr>
-                  {rows.filter(r => r.sub_group !== r.group_name).map((row, idx) => (
-                    <tr key={idx} className="analytics-yoy-sub-row">
-                      <td className="analytics-yoy-sub-name">{row.sub_group}</td>
-                      {years.map(y => (
-                        <React.Fragment key={y}>
-                          <td className="analytics-yoy-amount">{formatFullIndian(row[`year_${y}_total`])}</td>
-                          <td className="analytics-yoy-pct">{row[`year_${y}_yoy`] || '0.00'}%</td>
-                        </React.Fragment>
-                      ))}
-                    </tr>
-                  ))}
-                </React.Fragment>
-              );
-            })}
-            <tr className="analytics-yoy-total-row">
-              <td><strong>Total</strong></td>
-              {years.map(y => (
-                <React.Fragment key={y}>
-                  <td className="analytics-yoy-amount"><strong>{formatFullIndian(grandTotal[`year_${y}_total`])}</strong></td>
-                  <td className="analytics-yoy-pct"><strong>{grandTotal[`year_${y}_yoy`]}%</strong></td>
-                </React.Fragment>
-              ))}
-            </tr>
-          </tbody>
-        </table>
+      <div className="accounts-placeholder">
+        <div className="accounts-placeholder-icon">
+          <FileIcon size={28} />
+        </div>
+        <h3>Accounts Payable Overview</h3>
+        <p>Accounts Payable analytics and insights will be available here soon.</p>
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════
-// DETAIL TAB
+// BUDGET TAB (formerly DETAIL)
 // ═══════════════════════════════════════════════════════════
 function DetailTab({ budgetData }) {
   if (!budgetData) return <div className="analytics-loading">Loading budget data...</div>;
@@ -735,11 +679,15 @@ function BankTab({ bankData }) {
 // ═══════════════════════════════════════════════════════════
 // MAIN ANALYTICS DASHBOARD
 // ═══════════════════════════════════════════════════════════
-export default function AnalyticsDashboard() {
-  const [activeTab, setActiveTab] = useState('home');
+export default function AnalyticsDashboard({ user }) {
+  // Determine visible tabs based on user role
+  const allowedKeys = ROLE_TABS[user?.role] || ROLE_TABS.ADMIN;
+  const visibleTabs = ALL_TABS.filter(t => allowedKeys.includes(t.key));
+  const defaultTab = visibleTabs[0]?.key || 'sales';
+
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [salesData, setSalesData] = useState(null);
   const [budgetData, setBudgetData] = useState(null);
-  const [yoyData, setYoyData] = useState(null);
   const [budgetVsSalesData, setBudgetVsSalesData] = useState(null);
   const [bankData, setBankData] = useState(null);
   const [filters, setFilters] = useState(null);
@@ -747,6 +695,11 @@ export default function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const lastSyncRef = useRef(null);
+
+  // Determine which data to fetch based on visible tabs
+  const needsSales = allowedKeys.includes('sales');
+  const needsBudget = allowedKeys.includes('budget') || allowedKeys.includes('sales');
+  const needsBank = allowedKeys.includes('bank');
 
   useEffect(() => {
     fetchAnalyticsFilters().then(setFilters).catch(() => {});
@@ -756,24 +709,38 @@ export default function AnalyticsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [sales, budget, yoy, bvs, bank] = await Promise.all([
-        fetchSalesSummary(selectedFilters),
-        fetchBudgetSummary(selectedFilters),
-        fetchSalesYoY(selectedFilters),
-        fetchBudgetVsSales(selectedFilters),
-        fetchBankSummary()
-      ]);
-      setSalesData(sales);
-      setBudgetData(budget);
-      setYoyData(yoy);
-      setBudgetVsSalesData(bvs);
-      setBankData(bank);
+      const promises = [];
+      const keys = [];
+
+      if (needsSales) {
+        promises.push(fetchSalesSummary(selectedFilters));
+        keys.push('sales');
+        promises.push(fetchBudgetVsSales(selectedFilters));
+        keys.push('bvs');
+      }
+      if (needsBudget) {
+        promises.push(fetchBudgetSummary(selectedFilters));
+        keys.push('budget');
+      }
+      if (needsBank) {
+        promises.push(fetchBankSummary());
+        keys.push('bank');
+      }
+
+      const results = await Promise.all(promises);
+      const dataMap = {};
+      keys.forEach((k, i) => { dataMap[k] = results[i]; });
+
+      if (dataMap.sales) setSalesData(dataMap.sales);
+      if (dataMap.budget) setBudgetData(dataMap.budget);
+      if (dataMap.bvs) setBudgetVsSalesData(dataMap.bvs);
+      if (dataMap.bank) setBankData(dataMap.bank);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [selectedFilters]);
+  }, [selectedFilters, needsSales, needsBudget, needsBank]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -800,6 +767,8 @@ export default function AnalyticsDashboard() {
     });
   };
 
+  const showFilters = activeTab !== 'bank' && activeTab !== 'accounts';
+
   return (
     <div>
       <div style={{ marginBottom: 'var(--spacing-xl)' }}>
@@ -813,12 +782,7 @@ export default function AnalyticsDashboard() {
 
       <div className="analytics-toolbar">
         <div className="analytics-tabs">
-          {[
-            { key: 'home', label: 'HOME' },
-            { key: 'yoy', label: 'YoY' },
-            { key: 'detail', label: 'DETAIL' },
-            { key: 'bank', label: 'BANK' }
-          ].map(tab => (
+          {visibleTabs.map(tab => (
             <button key={tab.key}
               className={`analytics-tab ${activeTab === tab.key ? 'analytics-tab-active' : ''}`}
               onClick={() => setActiveTab(tab.key)}>
@@ -828,7 +792,7 @@ export default function AnalyticsDashboard() {
         </div>
 
         <div className="analytics-filters">
-          {activeTab !== 'bank' && (
+          {showFilters && (
             <>
               <select className="analytics-filter-select" value={selectedFilters.year || ''}
                 onChange={e => handleFilterChange('year', e.target.value)}>
@@ -839,7 +803,7 @@ export default function AnalyticsDashboard() {
               <select className="analytics-filter-select" value={selectedFilters.group || ''}
                 onChange={e => handleFilterChange('group', e.target.value)}>
                 <option value="">All Groups</option>
-                {(activeTab === 'detail' ? filters?.budget_groups : filters?.sales_groups)?.map(g => (
+                {(activeTab === 'budget' ? filters?.budget_groups : filters?.sales_groups)?.map(g => (
                   <option key={g} value={g}>{g}</option>
                 ))}
               </select>
@@ -863,9 +827,9 @@ export default function AnalyticsDashboard() {
         <div style={{ height: '3px', background: 'var(--color-primary-600)', animation: 'shimmer 1.5s infinite', marginBottom: 'var(--spacing-lg)', borderRadius: 'var(--radius-full)' }} />
       )}
 
-      {activeTab === 'home' && <HomeTab salesData={salesData} budgetVsSalesData={budgetVsSalesData} />}
-      {activeTab === 'yoy' && <YoYTab yoyData={yoyData} />}
-      {activeTab === 'detail' && <DetailTab budgetData={budgetData} />}
+      {activeTab === 'sales' && <HomeTab salesData={salesData} budgetVsSalesData={budgetVsSalesData} />}
+      {activeTab === 'budget' && <DetailTab budgetData={budgetData} />}
+      {activeTab === 'accounts' && <AccountsTab />}
       {activeTab === 'bank' && <BankTab bankData={bankData} />}
     </div>
   );
