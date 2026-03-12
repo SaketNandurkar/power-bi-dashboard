@@ -611,6 +611,35 @@ CREATE TABLE IF NOT EXISTS curated.customer_group_mapping (
 
 COMMENT ON TABLE curated.customer_group_mapping IS 'Maps bill_to customer codes to high-level group names for analytics charts.';
 
+-- Seed data: customer-to-group mapping (from Power BI reference sheet)
+-- Navinta group
+INSERT INTO curated.customer_group_mapping (bill_to, group_name) VALUES
+  ('1200004', 'Navinta'),   -- Navinta LLC
+  ('1200005', 'Navinta'),   -- Navinta NV Inc.
+  ('1200089', 'Navinta'),   -- Navinta II LLC (Export Goods)
+  ('1100003', 'Navinta')    -- Immacule Lifesciences Pvt. Ltd.
+ON CONFLICT (bill_to) DO UPDATE SET group_name = EXCLUDED.group_name;
+
+-- Waymade PLC group
+INSERT INTO curated.customer_group_mapping (bill_to, group_name) VALUES
+  ('1200010', 'Waymade PLC'),  -- Waymade Australia PTY Limited
+  ('1200030', 'Waymade PLC'),  -- Waymade PLC
+  ('1200057', 'Waymade PLC'),  -- Waymade PLC
+  ('1200078', 'Waymade PLC'),  -- Waymade BV
+  ('1200079', 'Waymade PLC'),  -- Waymade Canada Inc
+  ('1200096', 'Waymade PLC')   -- Waymade Australia Pvt. Ltd.
+ON CONFLICT (bill_to) DO UPDATE SET group_name = EXCLUDED.group_name;
+
+-- CMO Sales group (display name: 'CMO sales')
+INSERT INTO curated.customer_group_mapping (bill_to, group_name) VALUES
+  ('1100218', 'CMO sales'),  -- Krufren Pharma Pvt Ltd
+  ('1100021', 'CMO sales'),  -- Reine Life Science
+  ('1100041', 'CMO sales')   -- Samrudh Pharmaceuticals Pvt. Ltd.
+ON CONFLICT (bill_to) DO UPDATE SET group_name = EXCLUDED.group_name;
+
+-- Note: Scrap is determined by billing_type = 'ZSC1', not by customer code.
+-- Note: APPL is the default for any customer not in the above groups.
+
 -- ============================================================================
 -- GRANT PERMISSIONS
 -- ============================================================================

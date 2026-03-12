@@ -16,11 +16,11 @@ import {
 const GROUP_COLORS = {
   'APPL':         '#5B9BD5',
   'Waymade PLC':  '#ED3690',
-  'Navinta LLC':  '#ED7D31',
+  'Navinta':      '#ED7D31',
   'CMO sales':    '#4472C4',
   'scrap':        '#404040',
 };
-const GROUP_ORDER = ['APPL', 'Waymade PLC', 'Navinta LLC', 'CMO sales', 'scrap'];
+const GROUP_ORDER = ['APPL', 'Waymade PLC', 'Navinta', 'CMO sales', 'scrap'];
 const FY_COLORS = ['#4472C4', '#70AD47', '#ED7D31', '#FFC000', '#5B9BD5', '#A5A5A5'];
 const FALLBACK_COLORS = ['#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5', '#70AD47', '#264478', '#9B57A0'];
 

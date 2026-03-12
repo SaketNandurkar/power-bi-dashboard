@@ -8,27 +8,30 @@ const router = express.Router();
 // GROUP MAPPING
 // ══════════════════════════════════════════════════════════════
 // CTE that assigns a display group to each sales_register row.
-// Priority: customer_group_mapping table (bill_to code) > name-based CASE fallback.
+// Priority: billing_type ZSC1 → scrap > customer_group_mapping > name CASE > APPL default.
 // The 5 groups match the Power BI Output sheet:
-//   APPL, Waymade PLC, Navinta LLC, CMO sales, scrap
+//   APPL, Waymade PLC, Navinta, CMO sales, scrap
 const SALES_GROUP_CTE = `
   sales_grouped AS (
     SELECT sr.invoice_no, sr.billing_type, sr.billing_type_description,
            sr.invoice_date, sr.bill_to, sr.bill_to_name,
            sr.fiscal_year, sr.billing_quantity, sr.net_value,
            sr.tax_amount, sr.total,
-      COALESCE(
-        gm.group_name,
-        CASE
-          WHEN sr.bill_to_name ILIKE '%APPL%' THEN 'APPL'
-          WHEN sr.bill_to_name ILIKE '%Waymade%' THEN 'Waymade PLC'
-          WHEN sr.bill_to_name ILIKE '%Navinta%' THEN 'Navinta LLC'
-          WHEN sr.bill_to_name ILIKE '%Krufren%' THEN 'CMO sales'
-          WHEN sr.bill_to_name ILIKE '%Reine%' THEN 'CMO sales'
-          WHEN sr.bill_to_name ILIKE '%Samrudh%' THEN 'CMO sales'
-          ELSE 'scrap'
-        END
-      ) AS group_name
+      CASE
+        WHEN sr.billing_type = 'ZSC1' THEN 'scrap'
+        ELSE COALESCE(
+          gm.group_name,
+          CASE
+            WHEN sr.bill_to_name ILIKE '%Waymade%' THEN 'Waymade PLC'
+            WHEN sr.bill_to_name ILIKE '%Navinta%' THEN 'Navinta'
+            WHEN sr.bill_to_name ILIKE '%Immacule%' THEN 'Navinta'
+            WHEN sr.bill_to_name ILIKE '%Krufren%' THEN 'CMO sales'
+            WHEN sr.bill_to_name ILIKE '%Reine%' THEN 'CMO sales'
+            WHEN sr.bill_to_name ILIKE '%Samrudh%' THEN 'CMO sales'
+            ELSE 'APPL'
+          END
+        )
+      END AS group_name
     FROM curated.sales_register sr
     LEFT JOIN curated.customer_group_mapping gm ON sr.bill_to = gm.bill_to
   )
