@@ -100,6 +100,13 @@ export async function fetchBudgetVsSales(filters) {
   return data;
 }
 
+export async function fetchBankSummary() {
+  const response = await fetch(`${API_URL}/api/analytics/bank-summary`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to fetch bank summary');
+  return data;
+}
+
 export async function fetchAnalyticsFilters() {
   const response = await fetch(`${API_URL}/api/analytics/filters`);
   const data = await response.json();

@@ -7,7 +7,7 @@ import {
 import { RefreshIcon } from './Icons';
 import {
   fetchSalesSummary, fetchBudgetSummary, fetchSalesYoY,
-  fetchBudgetVsSales, fetchAnalyticsFilters, fetchSapStatus
+  fetchBudgetVsSales, fetchBankSummary, fetchAnalyticsFilters, fetchSapStatus
 } from '../services/api';
 
 // ══════════════════════════════════════════════════════
@@ -641,6 +641,98 @@ function DetailTab({ budgetData }) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// BANK TAB — Parent Bank × Currency pivot + Detail table
+// ═══════════════════════════════════════════════════════════
+const CURRENCY_ORDER = ['EEFC EURO', 'EEFC GBP', 'EEFC USD', 'INR'];
+
+function BankTab({ bankData }) {
+  if (!bankData) return <div className="analytics-loading">Loading bank data...</div>;
+
+  const { pivot, detail, total_balance } = bankData;
+  if (!detail?.length) return <div className="analytics-empty">No bank data available</div>;
+
+  // Build pivot: rows = parent_bank, columns = currencies
+  const currencies = CURRENCY_ORDER.filter(c =>
+    pivot.some(r => r.currency === c)
+  );
+  const bankMap = {};
+  for (const row of pivot) {
+    if (!bankMap[row.parent_bank]) bankMap[row.parent_bank] = {};
+    bankMap[row.parent_bank][row.currency] = Number(row.balance);
+  }
+  const banks = Object.keys(bankMap).sort();
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* ─── Pivot Table: Parent Bank × Currency ─── */}
+      <div className="bank-panel">
+        <div className="bank-panel-header">
+          <span className="bank-panel-title">Balance by Parent Bank and Currency</span>
+        </div>
+        <div className="bank-panel-body">
+          <div style={{ overflowX: 'auto' }}>
+            <table className="bank-pivot">
+              <thead>
+                <tr>
+                  <th className="bank-pivot-th-bank">Parent Bank</th>
+                  {currencies.map(c => <th key={c}>{c}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {banks.map((bank, idx) => (
+                  <tr key={bank} className={idx % 2 === 0 ? 'bank-row-even' : 'bank-row-odd'}>
+                    <td className="bank-pivot-bank">{bank}</td>
+                    {currencies.map(c => (
+                      <td key={c} className="bank-pivot-val">
+                        {bankMap[bank][c] != null ? formatFullIndian(bankMap[bank][c]) : ''}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Detail Table: Long Text + Sum of Balance ─── */}
+      <div className="bank-panel">
+        <div className="bank-panel-header">
+          <span className="bank-panel-title">Balance by Account</span>
+          <span style={{ fontSize: 12, opacity: 0.85 }}>
+            Total: {formatFullIndian(total_balance)}
+          </span>
+        </div>
+        <div className="bank-panel-body">
+          <div style={{ overflowX: 'auto', maxHeight: 500, overflowY: 'auto' }}>
+            <table className="bank-detail">
+              <thead>
+                <tr>
+                  <th className="bank-detail-th-text">Long Text</th>
+                  <th className="bank-detail-th-bal">Sum of Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.map((row, idx) => (
+                  <tr key={idx} className={idx % 2 === 0 ? 'bank-row-even' : 'bank-row-odd'}>
+                    <td className="bank-detail-text">{row.long_text}</td>
+                    <td className="bank-detail-val">{formatFullIndian(row.balance)}</td>
+                  </tr>
+                ))}
+                <tr className="bank-total-row">
+                  <td className="bank-detail-text"><strong>Total</strong></td>
+                  <td className="bank-detail-val"><strong>{formatFullIndian(total_balance)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
 // MAIN ANALYTICS DASHBOARD
 // ═══════════════════════════════════════════════════════════
 export default function AnalyticsDashboard() {
@@ -649,6 +741,7 @@ export default function AnalyticsDashboard() {
   const [budgetData, setBudgetData] = useState(null);
   const [yoyData, setYoyData] = useState(null);
   const [budgetVsSalesData, setBudgetVsSalesData] = useState(null);
+  const [bankData, setBankData] = useState(null);
   const [filters, setFilters] = useState(null);
   const [selectedFilters, setSelectedFilters] = useState({});
   const [loading, setLoading] = useState(true);
@@ -663,16 +756,18 @@ export default function AnalyticsDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [sales, budget, yoy, bvs] = await Promise.all([
+      const [sales, budget, yoy, bvs, bank] = await Promise.all([
         fetchSalesSummary(selectedFilters),
         fetchBudgetSummary(selectedFilters),
         fetchSalesYoY(selectedFilters),
-        fetchBudgetVsSales(selectedFilters)
+        fetchBudgetVsSales(selectedFilters),
+        fetchBankSummary()
       ]);
       setSalesData(sales);
       setBudgetData(budget);
       setYoyData(yoy);
       setBudgetVsSalesData(bvs);
+      setBankData(bank);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -721,7 +816,8 @@ export default function AnalyticsDashboard() {
           {[
             { key: 'home', label: 'HOME' },
             { key: 'yoy', label: 'YoY' },
-            { key: 'detail', label: 'DETAIL' }
+            { key: 'detail', label: 'DETAIL' },
+            { key: 'bank', label: 'BANK' }
           ].map(tab => (
             <button key={tab.key}
               className={`analytics-tab ${activeTab === tab.key ? 'analytics-tab-active' : ''}`}
@@ -732,19 +828,23 @@ export default function AnalyticsDashboard() {
         </div>
 
         <div className="analytics-filters">
-          <select className="analytics-filter-select" value={selectedFilters.year || ''}
-            onChange={e => handleFilterChange('year', e.target.value)}>
-            <option value="">All Years</option>
-            {filters?.years?.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+          {activeTab !== 'bank' && (
+            <>
+              <select className="analytics-filter-select" value={selectedFilters.year || ''}
+                onChange={e => handleFilterChange('year', e.target.value)}>
+                <option value="">All Years</option>
+                {filters?.years?.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
 
-          <select className="analytics-filter-select" value={selectedFilters.group || ''}
-            onChange={e => handleFilterChange('group', e.target.value)}>
-            <option value="">All Groups</option>
-            {(activeTab === 'detail' ? filters?.budget_groups : filters?.sales_groups)?.map(g => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
+              <select className="analytics-filter-select" value={selectedFilters.group || ''}
+                onChange={e => handleFilterChange('group', e.target.value)}>
+                <option value="">All Groups</option>
+                {(activeTab === 'detail' ? filters?.budget_groups : filters?.sales_groups)?.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </>
+          )}
 
           <button onClick={loadData} className="btn btn-secondary btn-sm" disabled={loading}>
             <RefreshIcon size={16} />
@@ -766,6 +866,7 @@ export default function AnalyticsDashboard() {
       {activeTab === 'home' && <HomeTab salesData={salesData} budgetVsSalesData={budgetVsSalesData} />}
       {activeTab === 'yoy' && <YoYTab yoyData={yoyData} />}
       {activeTab === 'detail' && <DetailTab budgetData={budgetData} />}
+      {activeTab === 'bank' && <BankTab bankData={bankData} />}
     </div>
   );
 }

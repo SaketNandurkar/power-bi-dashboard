@@ -1219,6 +1219,144 @@ body {
   text-align: left;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   BANK TAB — Gold/yellow headers matching Power BI Page 2
+   ══════════════════════════════════════════════════════════════ */
+
+.bank-panel {
+  background: white;
+  border: 1px solid #d4d4d4;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.bank-panel-header {
+  background: linear-gradient(135deg, #D4A017 0%, #C49000 100%);
+  color: white;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+}
+
+.bank-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.bank-panel-body {
+  padding: 0;
+}
+
+/* ── Pivot Table (Parent Bank × Currency) ── */
+.bank-pivot {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.bank-pivot th {
+  padding: 10px 14px;
+  text-align: right;
+  font-weight: 700;
+  color: #333;
+  background: #FFF3CD;
+  border-bottom: 2px solid #D4A017;
+  font-size: 13px;
+}
+
+.bank-pivot .bank-pivot-th-bank {
+  text-align: left;
+  min-width: 160px;
+}
+
+.bank-pivot td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.bank-pivot-bank {
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.bank-pivot-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #444;
+  white-space: nowrap;
+}
+
+/* ── Detail Table (Long Text + Balance) ── */
+.bank-detail {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.bank-detail th {
+  padding: 10px 14px;
+  font-weight: 700;
+  color: #333;
+  background: #FFF3CD;
+  border-bottom: 2px solid #D4A017;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.bank-detail .bank-detail-th-text {
+  text-align: left;
+  min-width: 300px;
+}
+
+.bank-detail .bank-detail-th-bal {
+  text-align: right;
+  min-width: 140px;
+}
+
+.bank-detail td {
+  padding: 8px 14px;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.bank-detail-text {
+  text-align: left;
+  color: #333;
+  white-space: nowrap;
+}
+
+.bank-detail-val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #444;
+  white-space: nowrap;
+}
+
+/* Alternating row colors (Power BI style) */
+.bank-row-even td {
+  background: #FFFDE7;
+}
+
+.bank-row-odd td {
+  background: #EDE7F6;
+}
+
+.bank-total-row td {
+  background: #FFF3CD !important;
+  border-top: 2px solid #D4A017;
+  border-bottom: none;
+  font-weight: 700;
+  color: #7B6000;
+  padding: 10px 14px;
+}
+
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .home-row {

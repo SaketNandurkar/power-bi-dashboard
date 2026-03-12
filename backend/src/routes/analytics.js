@@ -53,6 +53,35 @@ const DISPLAY_TO_BUDGET = {
 };
 
 // ══════════════════════════════════════════════════════════════
+// BANK REPORT MAPPING
+// ══════════════════════════════════════════════════════════════
+// Derive parent_bank and currency from short_text for pivot table.
+// Pattern examples:
+//   "HDFC CC INR-575..."  → HDFC Bank, INR
+//   "SBI EEFC USD-393..." → SBI Bank of India, EEFC USD
+//   "FD HDFC 503..."      → HDFC Bank, INR
+//   "FDHDFC503..."        → HDFC Bank, INR  (no space variant)
+const BANK_PARENT_CASE = `
+  CASE
+    WHEN short_text ILIKE 'HDFC%' OR short_text ILIKE 'FD HDFC%' OR short_text ILIKE 'FDHDFC%' THEN 'HDFC Bank'
+    WHEN short_text ILIKE 'SBI%' OR short_text ILIKE 'FD SBI%' THEN 'SBI Bank of India'
+    WHEN short_text ILIKE '%ICICI%' THEN 'ICICI Bank'
+    WHEN short_text ILIKE '%UCO%' THEN 'UCO Bank'
+    WHEN short_text ILIKE '%YES BANK%' OR short_text ILIKE 'FD YES%' THEN 'Yes Bank'
+    ELSE 'Other'
+  END
+`;
+
+const BANK_CURRENCY_CASE = `
+  CASE
+    WHEN short_text ILIKE '%EEFC EURO%' THEN 'EEFC EURO'
+    WHEN short_text ILIKE '%EEFC GBP%' THEN 'EEFC GBP'
+    WHEN short_text ILIKE '%EEFC USD%' THEN 'EEFC USD'
+    ELSE 'INR'
+  END
+`;
+
+// ══════════════════════════════════════════════════════════════
 // FILTER BUILDERS
 // ══════════════════════════════════════════════════════════════
 function buildSalesFilters(query) {
@@ -349,6 +378,46 @@ router.get('/sales-yoy', async (req, res, next) => {
     res.json({ years, matrix, group_totals: groupRows });
   } catch (err) {
     logger.error('Analytics sales-yoy failed', { error: err.message });
+    next(err);
+  }
+});
+
+/**
+ * GET /api/analytics/bank-summary
+ * Returns bank data for BANK tab: pivot (parent_bank × currency) + detail table.
+ */
+router.get('/bank-summary', async (req, res, next) => {
+  try {
+    const [pivotRes, detailRes, totalRes] = await Promise.all([
+      // Pivot: parent_bank × currency → sum(balance)
+      pool.query(`
+        SELECT ${BANK_PARENT_CASE} AS parent_bank,
+               ${BANK_CURRENCY_CASE} AS currency,
+               SUM(balance) AS balance
+        FROM curated.bank_report
+        GROUP BY parent_bank, currency
+        ORDER BY parent_bank, currency
+      `),
+      // Detail: every account row sorted by balance ascending
+      pool.query(`
+        SELECT long_text, balance
+        FROM curated.bank_report
+        ORDER BY balance ASC
+      `),
+      // Grand total
+      pool.query(`
+        SELECT SUM(balance) AS total_balance
+        FROM curated.bank_report
+      `)
+    ]);
+
+    res.json({
+      pivot: pivotRes.rows,
+      detail: detailRes.rows,
+      total_balance: Number(totalRes.rows[0]?.total_balance || 0)
+    });
+  } catch (err) {
+    logger.error('Analytics bank-summary failed', { error: err.message });
     next(err);
   }
 });
