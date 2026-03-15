@@ -4,10 +4,11 @@ import {
   ComposedChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList
 } from 'recharts';
-import { RefreshIcon, FileIcon } from './Icons';
+import { RefreshIcon } from './Icons';
 import {
   fetchSalesSummary, fetchBudgetSummary,
-  fetchBudgetVsSales, fetchBankSummary, fetchAnalyticsFilters, fetchSapStatus
+  fetchBudgetVsSales, fetchBankSummary, fetchAccountsPayableSummary,
+  fetchAnalyticsFilters, fetchSapStatus
 } from '../services/api';
 
 // ══════════════════════════════════════════════════════
@@ -455,18 +456,156 @@ function HomeTab({ salesData, budgetVsSalesData }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ACCOUNTS TAB (Placeholder)
+// ACCOUNTS TAB — Overall + MSME Payable Reports
 // ═══════════════════════════════════════════════════════════
-function AccountsTab() {
-  return (
-    <div className="analytics-chart-card analytics-chart-full">
-      <div className="accounts-placeholder">
-        <div className="accounts-placeholder-icon">
-          <FileIcon size={28} />
+const CATEGORY_COLS = ['formulation_plant', 'capex', 'opex', 'rm_pm', 'service'];
+const CATEGORY_LABELS = {
+  formulation_plant: 'Formulation Plant',
+  capex: 'Capex',
+  opex: 'Opex',
+  rm_pm: 'RM_PM',
+  service: 'Service'
+};
+
+// Fiscal year month order: Apr(4) → Mar(3)
+const FY_MONTH_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
+
+function buildApPivot(rows) {
+  // Group by month_sort → { month_label, category → amount }
+  const monthMap = {};
+  for (const row of rows) {
+    const key = `${row.cal_year}-${row.cal_month}`;
+    if (!monthMap[key]) {
+      monthMap[key] = { month_label: row.month_label, month_sort: Number(row.month_sort), amounts: {} };
+    }
+    monthMap[key].amounts[row.category] = (monthMap[key].amounts[row.category] || 0) + Number(row.amount);
+  }
+
+  // Sort by fiscal-year month order
+  const sorted = Object.values(monthMap).sort((a, b) => a.month_sort - b.month_sort);
+
+  // Compute grand total row
+  const grandTotal = {};
+  for (const col of CATEGORY_COLS) {
+    grandTotal[col] = sorted.reduce((sum, m) => sum + (m.amounts[col] || 0), 0);
+  }
+
+  return { months: sorted, grandTotal };
+}
+
+// Row color cycling matching the Power BI screenshot
+const AP_ROW_COLORS = ['#FFFF99', '#99CCFF', '#FF99CC', '#FFCC99', '#CC99FF', '#99FFCC'];
+
+function ApPivotTable({ title, data }) {
+  if (!data || data.months.length === 0) {
+    return (
+      <div className="bank-panel" style={{ marginBottom: 16 }}>
+        <div className="bank-panel-header" style={{ background: '#2E7D32', color: 'white' }}>
+          <span className="bank-panel-title">{title}</span>
         </div>
-        <h3>Accounts Payable Overview</h3>
-        <p>Accounts Payable analytics and insights will be available here soon.</p>
+        <div className="bank-panel-body">
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--color-gray-400)' }}>
+            No data available
+          </div>
+        </div>
       </div>
+    );
+  }
+
+  const { months, grandTotal } = data;
+  const grandRowTotal = CATEGORY_COLS.reduce((s, c) => s + (grandTotal[c] || 0), 0);
+
+  return (
+    <div className="bank-panel" style={{ marginBottom: 16 }}>
+      <div className="bank-panel-header" style={{ background: '#2E7D32', color: 'white' }}>
+        <span className="bank-panel-title">{title}</span>
+      </div>
+      <div className="bank-panel-body">
+        <div style={{ overflowX: 'auto' }}>
+          <table className="bank-pivot" style={{ minWidth: 800 }}>
+            <thead>
+              <tr>
+                <th className="bank-pivot-th-bank" style={{ background: '#FFD700', color: '#333', fontWeight: 700 }}>Month</th>
+                {CATEGORY_COLS.map(c => (
+                  <th key={c} style={{ background: '#FFD700', color: '#333', fontWeight: 700, textAlign: 'right' }}>
+                    {CATEGORY_LABELS[c]}
+                  </th>
+                ))}
+                <th style={{ background: '#FFD700', color: '#333', fontWeight: 700, textAlign: 'right' }}>Grand Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {months.map((m, idx) => {
+                const rowTotal = CATEGORY_COLS.reduce((s, c) => s + (m.amounts[c] || 0), 0);
+                return (
+                  <tr key={m.month_label} style={{ background: AP_ROW_COLORS[idx % AP_ROW_COLORS.length] }}>
+                    <td style={{ fontWeight: 600, padding: '8px 12px' }}>{m.month_label}</td>
+                    {CATEGORY_COLS.map(c => (
+                      <td key={c} style={{ textAlign: 'right', padding: '8px 12px' }}>
+                        {m.amounts[c] ? formatFullIndian(m.amounts[c]) : ''}
+                      </td>
+                    ))}
+                    <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 600 }}>
+                      {rowTotal > 0 ? formatFullIndian(rowTotal) : ''}
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Grand Total Row */}
+              <tr style={{ background: '#00BCD4', fontWeight: 700 }}>
+                <td style={{ padding: '10px 12px', color: 'white', fontWeight: 700 }}>Grand Total</td>
+                {CATEGORY_COLS.map(c => (
+                  <td key={c} style={{ textAlign: 'right', padding: '10px 12px', color: 'white', fontWeight: 700 }}>
+                    {grandTotal[c] ? formatFullIndian(grandTotal[c]) : ''}
+                  </td>
+                ))}
+                <td style={{ textAlign: 'right', padding: '10px 12px', color: 'white', fontWeight: 700 }}>
+                  {grandRowTotal > 0 ? formatFullIndian(grandRowTotal) : ''}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AccountsTab({ apData, apFy, onFyChange }) {
+  if (!apData) return <div className="analytics-loading">Loading accounts payable data...</div>;
+
+  const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fyLabel = apFy ? `FY ${apFy}-${String(apFy + 1).slice(2)}` : 'All Years';
+
+  const overallPivot = buildApPivot(apData.overall || []);
+  const msmePivot = buildApPivot(apData.msme || []);
+
+  return (
+    <div>
+      {/* FY Filter */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
+        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-gray-600)' }}>Company Fiscal Year:</label>
+        <select
+          className="analytics-filter-select"
+          value={apFy || ''}
+          onChange={e => onFyChange(e.target.value ? Number(e.target.value) : null)}
+        >
+          <option value="">All Years</option>
+          {(apData.fiscal_years || []).map(fy => (
+            <option key={fy} value={fy}>FY {fy}-{String(fy + 1).slice(2)}</option>
+          ))}
+        </select>
+      </div>
+
+      <ApPivotTable
+        title={`Overall Payable Report — ${fyLabel} (as on ${todayStr})`}
+        data={overallPivot}
+      />
+
+      <ApPivotTable
+        title={`MSME Payable Report — ${fyLabel} (as on ${todayStr})`}
+        data={msmePivot}
+      />
     </div>
   );
 }
@@ -690,6 +829,8 @@ export default function AnalyticsDashboard({ user }) {
   const [budgetData, setBudgetData] = useState(null);
   const [budgetVsSalesData, setBudgetVsSalesData] = useState(null);
   const [bankData, setBankData] = useState(null);
+  const [apData, setApData] = useState(null);
+  const [apFy, setApFy] = useState(null);
   const [filters, setFilters] = useState(null);
   const [selectedFilters, setSelectedFilters] = useState({});
   const [loading, setLoading] = useState(true);
@@ -700,10 +841,24 @@ export default function AnalyticsDashboard({ user }) {
   const needsSales = allowedKeys.includes('sales');
   const needsBudget = allowedKeys.includes('budget') || allowedKeys.includes('sales');
   const needsBank = allowedKeys.includes('bank');
+  const needsAP = allowedKeys.includes('accounts');
 
   useEffect(() => {
     fetchAnalyticsFilters().then(setFilters).catch(() => {});
   }, []);
+
+  // Load AP data separately (has its own FY filter)
+  const loadApData = useCallback(async () => {
+    if (!needsAP) return;
+    try {
+      const data = await fetchAccountsPayableSummary(apFy);
+      setApData(data);
+    } catch (err) {
+      // AP data failure shouldn't block other tabs
+    }
+  }, [apFy, needsAP]);
+
+  useEffect(() => { loadApData(); }, [loadApData]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -751,12 +906,13 @@ export default function AnalyticsDashboard({ user }) {
         if (status.lastSyncAt && status.lastSyncAt !== lastSyncRef.current) {
           lastSyncRef.current = status.lastSyncAt;
           loadData();
+          loadApData();
           fetchAnalyticsFilters().then(setFilters).catch(() => {});
         }
       } catch {}
     }, 30000);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, loadApData]);
 
   const handleFilterChange = (key, value) => {
     setSelectedFilters(prev => {
@@ -810,7 +966,7 @@ export default function AnalyticsDashboard({ user }) {
             </>
           )}
 
-          <button onClick={loadData} className="btn btn-secondary btn-sm" disabled={loading}>
+          <button onClick={() => { loadData(); loadApData(); }} className="btn btn-secondary btn-sm" disabled={loading}>
             <RefreshIcon size={16} />
             {loading ? 'Loading...' : 'Refresh'}
           </button>
@@ -829,7 +985,7 @@ export default function AnalyticsDashboard({ user }) {
 
       {activeTab === 'sales' && <HomeTab salesData={salesData} budgetVsSalesData={budgetVsSalesData} />}
       {activeTab === 'budget' && <DetailTab budgetData={budgetData} />}
-      {activeTab === 'accounts' && <AccountsTab />}
+      {activeTab === 'accounts' && <AccountsTab apData={apData} apFy={apFy} onFyChange={setApFy} />}
       {activeTab === 'bank' && <BankTab bankData={bankData} />}
     </div>
   );

@@ -422,6 +422,115 @@ router.get('/bank-summary', async (req, res, next) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════
+// ACCOUNTS PAYABLE CLASSIFICATION
+// ══════════════════════════════════════════════════════════════
+// Classification priority (conditions are non-overlapping):
+//   1. Formulation Plant: internal_order = '000300000207'
+//   2. Capex:             internal_order has value AND != '000300000207'
+//   3. RM_PM:             purchasing_document starts with '41' OR po_document_type = 'ZRML'
+//   4. Service:           po_document_type = 'ZSR1' (and internal_order is blank)
+//   5. Opex:              everything else remaining
+const AP_CATEGORY_CASE = `
+  CASE
+    WHEN internal_order IS NOT NULL AND internal_order != '' AND internal_order = '000300000207'
+      THEN 'formulation_plant'
+    WHEN internal_order IS NOT NULL AND internal_order != '' AND internal_order != '000300000207'
+      THEN 'capex'
+    WHEN purchasing_document LIKE '41%' OR po_document_type = 'ZRML'
+      THEN 'rm_pm'
+    WHEN po_document_type = 'ZSR1'
+      THEN 'service'
+    ELSE 'opex'
+  END
+`;
+
+// Fiscal year from posting_date: Apr-Mar cycle
+// e.g. April 2025 → FY 2025-26, March 2026 → FY 2025-26
+const AP_FY_EXPR = `
+  CASE WHEN EXTRACT(MONTH FROM posting_date) >= 4
+    THEN EXTRACT(YEAR FROM posting_date)::int
+    ELSE EXTRACT(YEAR FROM posting_date)::int - 1
+  END
+`;
+
+// Month label: "25-Apr", "25-May", etc.
+const AP_MONTH_LABEL = `TO_CHAR(posting_date, 'YY-Mon')`;
+
+// Month sort key for fiscal year ordering (Apr=1, May=2, ... Mar=12)
+const AP_MONTH_SORT = `
+  CASE WHEN EXTRACT(MONTH FROM posting_date) >= 4
+    THEN EXTRACT(MONTH FROM posting_date)::int - 3
+    ELSE EXTRACT(MONTH FROM posting_date)::int + 9
+  END
+`;
+
+/**
+ * GET /api/analytics/accounts-payable-summary
+ * Returns accounts payable pivot data for ACCOUNTS tab.
+ * Query params: ?fy=2025 (fiscal year start, e.g. 2025 for FY 2025-26)
+ */
+router.get('/accounts-payable-summary', async (req, res, next) => {
+  try {
+    const fyStart = req.query.fy ? parseInt(req.query.fy, 10) : null;
+
+    // Build FY date filter
+    let dateFilter = '';
+    const params = [];
+    if (fyStart) {
+      dateFilter = `AND posting_date >= $1 AND posting_date < $2`;
+      params.push(`${fyStart}-04-01`, `${fyStart + 1}-04-01`);
+    }
+
+    // Overall Payable Report (all H records)
+    const overallRes = await pool.query(`
+      SELECT ${AP_MONTH_LABEL} AS month_label,
+             ${AP_MONTH_SORT} AS month_sort,
+             EXTRACT(YEAR FROM posting_date)::int AS cal_year,
+             EXTRACT(MONTH FROM posting_date)::int AS cal_month,
+             ${AP_CATEGORY_CASE} AS category,
+             SUM(ABS(local_amount)) AS amount
+      FROM curated.accounts_payable
+      WHERE debit_credit = 'H' ${dateFilter}
+      GROUP BY month_label, month_sort, cal_year, cal_month, category
+      ORDER BY month_sort, category
+    `, params);
+
+    // MSME Payable Report (same but msme IS NOT NULL/blank)
+    const msmeRes = await pool.query(`
+      SELECT ${AP_MONTH_LABEL} AS month_label,
+             ${AP_MONTH_SORT} AS month_sort,
+             EXTRACT(YEAR FROM posting_date)::int AS cal_year,
+             EXTRACT(MONTH FROM posting_date)::int AS cal_month,
+             ${AP_CATEGORY_CASE} AS category,
+             SUM(ABS(local_amount)) AS amount
+      FROM curated.accounts_payable
+      WHERE debit_credit = 'H'
+        AND msme IS NOT NULL AND msme != ''
+        ${dateFilter}
+      GROUP BY month_label, month_sort, cal_year, cal_month, category
+      ORDER BY month_sort, category
+    `, params);
+
+    // Available fiscal years for filter dropdown
+    const fyRes = await pool.query(`
+      SELECT DISTINCT ${AP_FY_EXPR} AS fy_start
+      FROM curated.accounts_payable
+      WHERE posting_date IS NOT NULL
+      ORDER BY fy_start
+    `);
+
+    res.json({
+      overall: overallRes.rows,
+      msme: msmeRes.rows,
+      fiscal_years: fyRes.rows.map(r => r.fy_start)
+    });
+  } catch (err) {
+    logger.error('Analytics accounts-payable-summary failed', { error: err.message });
+    next(err);
+  }
+});
+
 /**
  * GET /api/analytics/filters
  * Returns available filter values (short display names).

@@ -174,3 +174,11 @@ export async function fetchAnalyticsFilters() {
   if (!response.ok) throw new Error(data.message || 'Failed to fetch filters');
   return data;
 }
+
+export async function fetchAccountsPayableSummary(fy) {
+  const qs = fy ? `?fy=${fy}` : '';
+  const response = await authFetch(`${API_URL}/api/analytics/accounts-payable-summary${qs}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to fetch accounts payable data');
+  return data;
+}
