@@ -7,7 +7,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import UserManagement from './components/UserManagement';
 import LoginPage from './components/LoginPage';
 import Notification from './components/Notification';
-import { CalendarIcon, LogoutIcon } from './components/Icons';
+import { CalendarIcon, LogoutIcon, MenuIcon } from './components/Icons';
 import { fetchStatus, fetchSapStatus, fetchCurrentUser } from './services/api';
 import { getToken, clearAuth } from './services/auth';
 import './App.css';
@@ -21,6 +21,7 @@ export default function App() {
   const isAdmin = user?.role === 'ADMIN';
   const defaultView = isAdmin ? 'dashboard' : 'analytics';
   const [activeView, setActiveView] = useState(defaultView);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [reports, setReports] = useState([
     { report_type: 'accounts_payable', last_uploaded: null, rows_total: 0, status: 'pending' },
     { report_type: 'bank_report', last_uploaded: null, rows_total: 0, status: 'pending' },
@@ -151,37 +152,37 @@ export default function App() {
     <div className="app-layout">
       {/* Sidebar — only for ADMIN */}
       {isAdmin && (
-        <Sidebar activeView={activeView} onViewChange={handleViewChange} user={user} />
+        <>
+          {sidebarOpen && (
+            <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+          )}
+          <Sidebar
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            user={user}
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        </>
       )}
 
       {/* Main Content Area */}
       <div className={`app-main ${!isAdmin ? 'app-main-full' : ''}`}>
         {/* Top Header */}
         <header className="app-header">
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--spacing-md)'
-          }}>
-            <h2 style={{
-              fontSize: '16px',
-              fontWeight: '600',
-              color: 'var(--color-gray-900)',
-              margin: 0
-            }}>
+          <div className="header-left">
+            {isAdmin && (
+              <button className="hamburger-btn" onClick={() => setSidebarOpen(true)}>
+                <MenuIcon size={20} />
+              </button>
+            )}
+            <h2 className="header-title">
               {getHeaderTitle()}
             </h2>
           </div>
 
           <div className="header-user-section">
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-md)',
-              fontSize: '13px',
-              color: 'var(--color-gray-600)',
-              fontWeight: 500
-            }}>
+            <div className="header-date-info">
               <CalendarIcon size={16} />
               <span>
                 {new Date().toLocaleDateString('en-IN', {
@@ -193,16 +194,16 @@ export default function App() {
               </span>
             </div>
 
-            <div style={{ width: 1, height: 24, background: 'var(--color-gray-200)' }} />
+            <div className="header-divider" />
 
             <div className="header-user-info">
               <span className="header-user-name">{user.full_name}</span>
-              <span className={`header-role-badge`}>{user.role.replace('_', ' ')}</span>
+              <span className="header-role-badge">{user.role.replace('_', ' ')}</span>
             </div>
 
             <button className="btn-logout" onClick={handleLogout}>
               <LogoutIcon size={14} />
-              Logout
+              <span>Logout</span>
             </button>
           </div>
         </header>

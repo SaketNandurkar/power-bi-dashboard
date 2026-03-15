@@ -176,3 +176,4 @@ export const UserIcon = ({ size = 20, color = "currentColor" }) => (
     <circle cx="12" cy="7" r="4" />
   </svg>
 );
+

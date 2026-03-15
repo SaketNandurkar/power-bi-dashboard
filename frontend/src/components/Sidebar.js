@@ -4,10 +4,11 @@ import {
   SyncIcon,
   ChartIcon,
   ActivityIcon,
-  UsersIcon
+  UsersIcon,
+  XIcon
 } from './Icons';
 
-export default function Sidebar({ activeView, onViewChange, user }) {
+export default function Sidebar({ activeView, onViewChange, user, isOpen, onClose }) {
   const navItems = [
     {
       id: 'dashboard',
@@ -60,8 +61,13 @@ export default function Sidebar({ activeView, onViewChange, user }) {
     }))
     .filter(section => section.items.length > 0);
 
+  const handleNavClick = (id) => {
+    onViewChange(id);
+    if (onClose) onClose();
+  };
+
   return (
-    <div className="app-sidebar">
+    <div className={`app-sidebar ${isOpen ? 'sidebar-open' : ''}`}>
       {/* Brand */}
       <div className="sidebar-brand">
         <img
@@ -69,6 +75,9 @@ export default function Sidebar({ activeView, onViewChange, user }) {
           alt="Apothecon - Caring For Humanity"
           className="sidebar-logo-img"
         />
+        <button className="sidebar-close-btn" onClick={onClose}>
+          <XIcon size={20} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -80,7 +89,7 @@ export default function Sidebar({ activeView, onViewChange, user }) {
               <div
                 key={item.id}
                 className={`sidebar-nav-item ${activeView === item.id ? 'active' : ''}`}
-                onClick={() => onViewChange(item.id)}
+                onClick={() => handleNavClick(item.id)}
               >
                 <item.icon size={20} className="sidebar-nav-icon" />
                 <span>{item.label}</span>
@@ -93,31 +102,15 @@ export default function Sidebar({ activeView, onViewChange, user }) {
       {/* Footer */}
       <div className="sidebar-footer">
         {user && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '8px'
-          }}>
-            <div style={{
-              width: 28,
-              height: 28,
-              borderRadius: '50%',
-              background: 'var(--color-primary-100)',
-              color: 'var(--color-primary-700)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              fontWeight: 700
-            }}>
+          <div className="sidebar-user-info">
+            <div className="sidebar-user-avatar">
               {user.full_name?.charAt(0)?.toUpperCase() || 'A'}
             </div>
-            <div>
-              <div style={{ color: 'var(--color-gray-600)', fontWeight: 600, fontSize: '12px' }}>
+            <div className="sidebar-user-details">
+              <div className="sidebar-user-name">
                 {user.full_name}
               </div>
-              <div style={{ color: 'var(--color-gray-400)', fontSize: '10px', textTransform: 'uppercase' }}>
+              <div className="sidebar-user-role">
                 {user.role.replace('_', ' ')}
               </div>
             </div>
