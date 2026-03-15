@@ -52,14 +52,14 @@ function getGroupColor(name) {
 // ══════════════════════════════════════════════════════
 function formatM(num) {
   if (num == null || isNaN(num)) return '';
-  const n = Number(num);
+  const n = Math.abs(Number(num));
   if (n === 0) return '0';
   return (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
 }
 
 function formatMComma(num) {
   if (num == null || isNaN(num)) return '0';
-  const m = (Number(num) / 1e6);
+  const m = Math.abs(Number(num)) / 1e6;
   // Indian-style comma: 1,519.15M
   const parts = m.toFixed(2).split('.');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -68,12 +68,12 @@ function formatMComma(num) {
 
 function formatFullIndian(num) {
   if (num == null || isNaN(num)) return '0';
-  return Number(num).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return Math.abs(Number(num)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatAxisM(num) {
   if (num == null || isNaN(num)) return '0';
-  const n = Number(num);
+  const n = Math.abs(Number(num));
   if (n === 0) return '0M';
   return (n / 1e6).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + 'M';
 }
