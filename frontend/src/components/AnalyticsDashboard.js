@@ -280,14 +280,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                   dot={{ r: 2.5, fill: getGroupColor(g) }}
                   activeDot={{ r: 5 }}
                   connectNulls
-                >
-                  <LabelList
-                    dataKey={g}
-                    position="top"
-                    formatter={v => v ? formatM(v) : ''}
-                    style={{ fontSize: 8, fill: getGroupColor(g) }}
-                  />
-                </Line>
+                />
               ))}
             </LineChart>
           </ResponsiveContainer>
@@ -307,11 +300,27 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                 cy="50%"
                 outerRadius="75%"
                 dataKey="value"
-                label={({ name, value, percent }) => {
-                  if (percent < 0.01) return '';
-                  return `${formatMComma(value)} (${(percent * 100).toFixed(2)}%)`;
+                label={({ name, value, percent, cx, cy, midAngle, outerRadius: oR }) => {
+                  if (percent < 0.05) return null;
+                  const RADIAN = Math.PI / 180;
+                  const radius = oR + 18;
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill={getGroupColor(name)}
+                      textAnchor={x > cx ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={10}
+                      fontWeight={600}
+                    >
+                      {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
+                    </text>
+                  );
                 }}
-                labelLine={{ strokeWidth: 1, stroke: '#999' }}
+                labelLine={{ strokeWidth: 1, stroke: '#bbb' }}
                 startAngle={90}
                 endAngle={-270}
               >
@@ -319,7 +328,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                   <Cell key={i} fill={getGroupColor(entry.name)} />
                 ))}
               </Pie>
-              <Tooltip formatter={(val) => formatFullIndian(val)} />
+              <Tooltip formatter={(val) => `${formatMComma(val)} (${formatFullIndian(val)})`} />
               <Legend
                 layout="vertical"
                 verticalAlign="middle"
@@ -668,9 +677,20 @@ function DetailTab({ budgetData }) {
       <PBIPanel title="Budget Distribution by GROUP">
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
-            <Pie data={groupData} cx="50%" cy="50%" outerRadius={100} dataKey="value"
-              label={({ name, percent }) => percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''}
-              labelLine={{ strokeWidth: 1 }}
+            <Pie data={groupData} cx="50%" cy="50%" outerRadius={90} dataKey="value"
+              label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR }) => {
+                if (percent < 0.05) return null;
+                const RADIAN = Math.PI / 180;
+                const radius = oR + 16;
+                const x = pcx + radius * Math.cos(-midAngle * RADIAN);
+                const y = pcy + radius * Math.sin(-midAngle * RADIAN);
+                return (
+                  <text x={x} y={y} fill="#555" textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={600}>
+                    {`${name} (${(percent * 100).toFixed(1)}%)`}
+                  </text>
+                );
+              }}
+              labelLine={{ strokeWidth: 1, stroke: '#bbb' }}
             >
               {groupData.map((_, i) => (
                 <Cell key={i} fill={FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
@@ -685,9 +705,20 @@ function DetailTab({ budgetData }) {
       <PBIPanel title="Budget Distribution by INCOME_GROUP">
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
-            <Pie data={incomeData} cx="50%" cy="50%" outerRadius={100} dataKey="value"
-              label={({ name, percent }) => percent > 0.03 ? `${name} (${(percent * 100).toFixed(1)}%)` : ''}
-              labelLine={{ strokeWidth: 1 }}
+            <Pie data={incomeData} cx="50%" cy="50%" outerRadius={90} dataKey="value"
+              label={({ name, percent, cx: pcx, cy: pcy, midAngle, outerRadius: oR }) => {
+                if (percent < 0.05) return null;
+                const RADIAN = Math.PI / 180;
+                const radius = oR + 16;
+                const x = pcx + radius * Math.cos(-midAngle * RADIAN);
+                const y = pcy + radius * Math.sin(-midAngle * RADIAN);
+                return (
+                  <text x={x} y={y} fill="#555" textAnchor={x > pcx ? 'start' : 'end'} dominantBaseline="central" fontSize={10} fontWeight={600}>
+                    {`${name} (${(percent * 100).toFixed(1)}%)`}
+                  </text>
+                );
+              }}
+              labelLine={{ strokeWidth: 1, stroke: '#bbb' }}
             >
               {incomeData.map((_, i) => (
                 <Cell key={i} fill={FALLBACK_COLORS[i % FALLBACK_COLORS.length]} />
