@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-  ComposedChart, Area,
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList
 } from 'recharts';
 import { RefreshIcon } from './Icons';
@@ -367,84 +366,88 @@ function HomeTab({ salesData, budgetVsSalesData }) {
           </div>
         </PBIPanel>
 
-        {/* Panel 5: Budget by Group — Dual Axis */}
-        <PBIPanel title="Budget by Group" className="home-panel-budget">
+        {/* Panel 5: Budget vs Sales by Group — Enhanced Area Chart */}
+        <PBIPanel title="Budget vs Sales by Group" className="home-panel-budget">
           {budgetVsData.length > 0 ? (
             <>
               <div className="pbi-legend-row" style={{ marginBottom: 4 }}>
                 <span className="pbi-legend-item">
-                  <span className="pbi-legend-dot" style={{ background: '#B0B0B0' }} />
-                  Sum of Budget (M)
+                  <span className="pbi-legend-dot" style={{ background: '#4472C4' }} />
+                  Budget (CR)
                 </span>
                 <span className="pbi-legend-item">
-                  <span className="pbi-legend-dot" style={{ background: '#C00000' }} />
-                  Sum of Total amount
+                  <span className="pbi-legend-dot" style={{ background: '#E74C3C' }} />
+                  Sales (Actual)
                 </span>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={budgetVsData} margin={{ top: 15, right: 50, left: 10, bottom: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={budgetVsData} margin={{ top: 20, right: 20, left: 0, bottom: 30 }}>
+                  <defs>
+                    <linearGradient id="gradBudget" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#4472C4" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#4472C4" stopOpacity={0.05} />
+                    </linearGradient>
+                    <linearGradient id="gradSales" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#E74C3C" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#E74C3C" stopOpacity={0.03} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#eaeaea" vertical={false} />
                   <XAxis
                     dataKey="group_name"
                     tick={{ fontSize: 10, fill: '#555' }}
                     angle={-20}
                     textAnchor="end"
-                    height={40}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    tickFormatter={v => formatRupeeM(v)}
-                    tick={{ fontSize: 9, fill: '#888' }}
-                    axisLine={false}
+                    height={45}
+                    axisLine={{ stroke: '#ccc' }}
                     tickLine={false}
-                    label={{ value: 'Sum of Budget (M)', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#888' } }}
                   />
                   <YAxis
-                    yAxisId="right"
-                    orientation="right"
                     tickFormatter={formatAxisM}
                     tick={{ fontSize: 9, fill: '#888' }}
                     axisLine={false}
                     tickLine={false}
-                    label={{ value: 'Sum of Total amount', angle: 90, position: 'insideRight', offset: 10, style: { fontSize: 10, fill: '#888' } }}
                   />
                   <Tooltip content={<PBITooltip />} />
                   <Area
-                    yAxisId="left"
                     type="monotone"
                     dataKey="budget_cr"
-                    name="Sum of Budget (M)"
-                    fill="#C8C8C8"
-                    fillOpacity={0.6}
-                    stroke="#A0A0A0"
-                    strokeWidth={1}
+                    name="Budget (CR)"
+                    stroke="#4472C4"
+                    strokeWidth={2.5}
+                    fill="url(#gradBudget)"
+                    dot={{ r: 4, fill: '#4472C4', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, fill: '#4472C4', stroke: '#fff', strokeWidth: 2 }}
                   >
-                    <LabelList
-                      dataKey="budget_cr"
-                      position="top"
-                      formatter={v => v ? formatRupeeM(v) : ''}
-                      style={{ fontSize: 9, fill: '#666' }}
-                    />
+                    <LabelList dataKey="budget_cr" position="top" formatter={v => v ? formatM(v) : ''} style={{ fontSize: 9, fill: '#4472C4', fontWeight: 600 }} />
                   </Area>
                   <Area
-                    yAxisId="right"
                     type="monotone"
                     dataKey="total_amount"
-                    name="Sum of Total amount"
-                    fill="#C00000"
-                    fillOpacity={0.3}
-                    stroke="#C00000"
-                    strokeWidth={2}
+                    name="Sales (Actual)"
+                    stroke="#E74C3C"
+                    strokeWidth={2.5}
+                    fill="url(#gradSales)"
+                    dot={{ r: 4, fill: '#E74C3C', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, fill: '#E74C3C', stroke: '#fff', strokeWidth: 2 }}
                   >
-                    <LabelList
-                      dataKey="total_amount"
-                      position="bottom"
-                      formatter={v => v ? formatMComma(v) : ''}
-                      style={{ fontSize: 9, fill: '#C00000' }}
-                    />
+                    <LabelList dataKey="total_amount" position="bottom" formatter={v => v ? formatM(v) : ''} style={{ fontSize: 9, fill: '#E74C3C', fontWeight: 600 }} />
                   </Area>
-                </ComposedChart>
+                </AreaChart>
               </ResponsiveContainer>
+              {/* Summary footer */}
+              {(() => {
+                const totalBudget = budgetVsData.reduce((s, r) => s + (Number(r.budget_cr) || 0), 0);
+                const totalSales = budgetVsData.reduce((s, r) => s + (Number(r.total_amount) || 0), 0);
+                const achievement = totalBudget > 0 ? ((totalSales / totalBudget) * 100).toFixed(1) : '0.0';
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 24, padding: '8px 12px', borderTop: '1px solid #e8e8e8', fontSize: 11 }}>
+                    <span style={{ color: '#4472C4', fontWeight: 600 }}>Budget: {formatMComma(totalBudget)}</span>
+                    <span style={{ color: '#E74C3C', fontWeight: 600 }}>Sales: {formatMComma(totalSales)}</span>
+                    <span style={{ color: '#333', fontWeight: 700 }}>Achievement: {achievement}%</span>
+                  </div>
+                );
+              })()}
             </>
           ) : (
             <div className="analytics-empty" style={{ padding: '60px 0' }}>No budget data available</div>
