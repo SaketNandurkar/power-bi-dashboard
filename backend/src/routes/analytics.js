@@ -433,9 +433,9 @@ router.get('/bank-summary', async (req, res, next) => {
 //   5. Opex:              everything else remaining
 const AP_CATEGORY_CASE = `
   CASE
-    WHEN internal_order IS NOT NULL AND internal_order != '' AND internal_order = '000300000207'
+    WHEN internal_order IS NOT NULL AND internal_order != '' AND LTRIM(internal_order, '0') = '300000207'
       THEN 'formulation_plant'
-    WHEN internal_order IS NOT NULL AND internal_order != '' AND internal_order != '000300000207'
+    WHEN internal_order IS NOT NULL AND internal_order != '' AND LTRIM(internal_order, '0') != '300000207'
       THEN 'capex'
     WHEN purchasing_document LIKE '41%' OR po_document_type = 'ZRML'
       THEN 'rm_pm'
