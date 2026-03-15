@@ -493,14 +493,11 @@ function buildApPivot(rows) {
   return { months: sorted, grandTotal };
 }
 
-// Row color cycling matching the Power BI screenshot
-const AP_ROW_COLORS = ['#FFFF99', '#99CCFF', '#FF99CC', '#FFCC99', '#CC99FF', '#99FFCC'];
-
 function ApPivotTable({ title, data }) {
   if (!data || data.months.length === 0) {
     return (
       <div className="bank-panel" style={{ marginBottom: 16 }}>
-        <div className="bank-panel-header" style={{ background: '#2E7D32', color: 'white' }}>
+        <div className="bank-panel-header">
           <span className="bank-panel-title">{title}</span>
         </div>
         <div className="bank-panel-body">
@@ -517,7 +514,7 @@ function ApPivotTable({ title, data }) {
 
   return (
     <div className="bank-panel" style={{ marginBottom: 16 }}>
-      <div className="bank-panel-header" style={{ background: '#2E7D32', color: 'white' }}>
+      <div className="bank-panel-header">
         <span className="bank-panel-title">{title}</span>
       </div>
       <div className="bank-panel-body">
@@ -525,42 +522,39 @@ function ApPivotTable({ title, data }) {
           <table className="bank-pivot" style={{ minWidth: 800 }}>
             <thead>
               <tr>
-                <th className="bank-pivot-th-bank" style={{ background: '#FFD700', color: '#333', fontWeight: 700 }}>Month</th>
+                <th className="bank-pivot-th-bank">Month</th>
                 {CATEGORY_COLS.map(c => (
-                  <th key={c} style={{ background: '#FFD700', color: '#333', fontWeight: 700, textAlign: 'right' }}>
-                    {CATEGORY_LABELS[c]}
-                  </th>
+                  <th key={c}>{CATEGORY_LABELS[c]}</th>
                 ))}
-                <th style={{ background: '#FFD700', color: '#333', fontWeight: 700, textAlign: 'right' }}>Grand Total</th>
+                <th>Grand Total</th>
               </tr>
             </thead>
             <tbody>
               {months.map((m, idx) => {
                 const rowTotal = CATEGORY_COLS.reduce((s, c) => s + (m.amounts[c] || 0), 0);
                 return (
-                  <tr key={m.month_label} style={{ background: AP_ROW_COLORS[idx % AP_ROW_COLORS.length] }}>
-                    <td style={{ fontWeight: 600, padding: '8px 12px' }}>{m.month_label}</td>
+                  <tr key={m.month_label} className={idx % 2 === 0 ? 'bank-row-even' : 'bank-row-odd'}>
+                    <td className="bank-pivot-bank">{m.month_label}</td>
                     {CATEGORY_COLS.map(c => (
-                      <td key={c} style={{ textAlign: 'right', padding: '8px 12px' }}>
+                      <td key={c} className="bank-pivot-val">
                         {m.amounts[c] ? formatFullIndian(m.amounts[c]) : ''}
                       </td>
                     ))}
-                    <td style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 600 }}>
+                    <td className="bank-pivot-val" style={{ fontWeight: 600 }}>
                       {rowTotal > 0 ? formatFullIndian(rowTotal) : ''}
                     </td>
                   </tr>
                 );
               })}
-              {/* Grand Total Row */}
-              <tr style={{ background: '#00BCD4', fontWeight: 700 }}>
-                <td style={{ padding: '10px 12px', color: 'white', fontWeight: 700 }}>Grand Total</td>
+              <tr className="bank-total-row">
+                <td className="bank-pivot-bank"><strong>Grand Total</strong></td>
                 {CATEGORY_COLS.map(c => (
-                  <td key={c} style={{ textAlign: 'right', padding: '10px 12px', color: 'white', fontWeight: 700 }}>
-                    {grandTotal[c] ? formatFullIndian(grandTotal[c]) : ''}
+                  <td key={c} className="bank-pivot-val">
+                    <strong>{grandTotal[c] ? formatFullIndian(grandTotal[c]) : ''}</strong>
                   </td>
                 ))}
-                <td style={{ textAlign: 'right', padding: '10px 12px', color: 'white', fontWeight: 700 }}>
-                  {grandRowTotal > 0 ? formatFullIndian(grandRowTotal) : ''}
+                <td className="bank-pivot-val">
+                  <strong>{grandRowTotal > 0 ? formatFullIndian(grandRowTotal) : ''}</strong>
                 </td>
               </tr>
             </tbody>
@@ -636,8 +630,7 @@ function DetailTab({ budgetData }) {
 
   return (
     <div className="analytics-grid">
-      <div className="analytics-chart-card">
-        <h3 className="analytics-chart-title">Sum of BUDGET_CR by GROUP</h3>
+      <PBIPanel title="Sum of BUDGET_CR by GROUP">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={groupData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -651,10 +644,9 @@ function DetailTab({ budgetData }) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </PBIPanel>
 
-      <div className="analytics-chart-card">
-        <h3 className="analytics-chart-title">Sum of BUDGET_CR by INCOME_GROUP</h3>
+      <PBIPanel title="Sum of BUDGET_CR by INCOME_GROUP">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={incomeData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -668,10 +660,9 @@ function DetailTab({ budgetData }) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </PBIPanel>
 
-      <div className="analytics-chart-card">
-        <h3 className="analytics-chart-title">Sum of BUDGET_CR by GROUP</h3>
+      <PBIPanel title="Budget Distribution by GROUP">
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie data={groupData} cx="50%" cy="50%" outerRadius={100} dataKey="value"
@@ -686,10 +677,9 @@ function DetailTab({ budgetData }) {
             <Legend />
           </PieChart>
         </ResponsiveContainer>
-      </div>
+      </PBIPanel>
 
-      <div className="analytics-chart-card">
-        <h3 className="analytics-chart-title">Sum of BUDGET_CR by INCOME_GROUP</h3>
+      <PBIPanel title="Budget Distribution by INCOME_GROUP">
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie data={incomeData} cx="50%" cy="50%" outerRadius={100} dataKey="value"
@@ -704,10 +694,9 @@ function DetailTab({ budgetData }) {
             <Legend />
           </PieChart>
         </ResponsiveContainer>
-      </div>
+      </PBIPanel>
 
-      <div className="analytics-chart-card analytics-chart-full">
-        <h3 className="analytics-chart-title">Budget (CR) by Month</h3>
+      <PBIPanel title="Budget (CR) by Month" className="analytics-chart-full">
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={monthData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -718,7 +707,7 @@ function DetailTab({ budgetData }) {
               dot={{ r: 5, fill: '#4472C4' }} activeDot={{ r: 7 }} />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </PBIPanel>
     </div>
   );
 }

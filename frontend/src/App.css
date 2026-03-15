@@ -1055,7 +1055,7 @@ body {
   min-width: 0;
 }
 
-/* ── Power BI Matrix Table (orange accents) ── */
+/* ── Power BI Matrix Table ── */
 .pbi-matrix-scroll {
   overflow-x: auto;
 }
@@ -1071,9 +1071,9 @@ body {
   text-align: right;
   font-weight: 700;
   color: #333;
-  border-bottom: 3px solid #ED7D31;
+  border-bottom: 2px solid #4472C4;
   font-size: 13px;
-  background: white;
+  background: #eef2f8;
 }
 
 .pbi-matrix .pbi-matrix-th-group {
@@ -1083,7 +1083,7 @@ body {
 
 .pbi-matrix-row td {
   padding: 10px 12px;
-  border-bottom: 2px solid #ED7D31;
+  border-bottom: 1px solid #dce3ee;
 }
 
 .pbi-matrix-group {
@@ -1112,13 +1112,13 @@ body {
 
 .pbi-matrix-total-row td {
   padding: 12px;
-  border-top: 3px solid #ED7D31;
+  border-top: 2px solid #4472C4;
   border-bottom: none;
-  background: #FFF8F0;
+  background: #eef2f8;
 }
 
 .pbi-matrix-total-val {
-  color: #C05000;
+  color: #1e3a5f;
 }
 
 .analytics-chart-title {
@@ -1220,7 +1220,7 @@ body {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   BANK TAB — Gold/yellow headers matching Power BI Page 2
+   UNIFIED TABLE PANELS — Consistent blue theme across all tabs
    ══════════════════════════════════════════════════════════════ */
 
 .bank-panel {
@@ -1232,7 +1232,7 @@ body {
 }
 
 .bank-panel-header {
-  background: linear-gradient(135deg, #D4A017 0%, #C49000 100%);
+  background: linear-gradient(135deg, #4472C4 0%, #3461B3 100%);
   color: white;
   padding: 8px 16px;
   display: flex;
@@ -1252,7 +1252,7 @@ body {
   padding: 0;
 }
 
-/* ── Pivot Table (Parent Bank × Currency) ── */
+/* ── Pivot / Data Tables ── */
 .bank-pivot {
   width: 100%;
   border-collapse: collapse;
@@ -1264,8 +1264,8 @@ body {
   text-align: right;
   font-weight: 700;
   color: #333;
-  background: #FFF3CD;
-  border-bottom: 2px solid #D4A017;
+  background: #eef2f8;
+  border-bottom: 2px solid #4472C4;
   font-size: 13px;
 }
 
@@ -1304,8 +1304,8 @@ body {
   padding: 10px 14px;
   font-weight: 700;
   color: #333;
-  background: #FFF3CD;
-  border-bottom: 2px solid #D4A017;
+  background: #eef2f8;
+  border-bottom: 2px solid #4472C4;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -1339,21 +1339,21 @@ body {
   white-space: nowrap;
 }
 
-/* Alternating row colors (Power BI style) */
+/* Alternating row colors — subtle professional styling */
 .bank-row-even td {
-  background: #FFFDE7;
+  background: #ffffff;
 }
 
 .bank-row-odd td {
-  background: #EDE7F6;
+  background: #f5f7fa;
 }
 
 .bank-total-row td {
-  background: #FFF3CD !important;
-  border-top: 2px solid #D4A017;
+  background: #2d4a7a !important;
+  border-top: 2px solid #4472C4;
   border-bottom: none;
   font-weight: 700;
-  color: #7B6000;
+  color: white;
   padding: 10px 14px;
 }
 
