@@ -5,6 +5,7 @@ import SapSyncPanel from './components/SapSyncPanel';
 import StatusPanel from './components/StatusPanel';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import UserManagement from './components/UserManagement';
+import ChatbotPanel from './components/ChatbotPanel';
 import LoginPage from './components/LoginPage';
 import Notification from './components/Notification';
 import { CalendarIcon, LogoutIcon, MenuIcon } from './components/Icons';
@@ -128,6 +129,8 @@ export default function App() {
         return <StatusPanel reports={reports} loading={statusLoading} />;
       case 'analytics':
         return <AnalyticsDashboard user={user} />;
+      case 'chatbot':
+        return <ChatbotPanel user={user} />;
       case 'users':
         return <UserManagement currentUser={user} />;
       default:
@@ -143,6 +146,7 @@ export default function App() {
       case 'sync': return 'SAP Synchronization';
       case 'reports': return 'Data Status';
       case 'analytics': return 'Analytics Dashboard';
+      case 'chatbot': return 'AI Assistant';
       case 'users': return 'User Management';
       default: return 'Dashboard Overview';
     }

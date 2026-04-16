@@ -10,6 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/add-ai-schema.sql:/docker-entrypoint-initdb.d/02-add-ai-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bizware_user} -d ${POSTGRES_DB:-bizware_dashboards}"]
       interval: 10s
@@ -43,6 +44,15 @@ services:
       - SAP_SYNC_ENABLED=${SAP_SYNC_ENABLED:-true}
       - SAP_REQUEST_TIMEOUT=${SAP_REQUEST_TIMEOUT:-120000}
       - CSV_EXPORT_PATH=${CSV_EXPORT_PATH:-/data/powerbi_exports}
+      - AI_SERVICE_ENABLED=${AI_SERVICE_ENABLED:-true}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4-turbo-preview}
+      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-1500}
+      - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.1}
+      - AI_REQUEST_TIMEOUT=${AI_REQUEST_TIMEOUT:-30000}
+      - SQL_MAX_ROWS=${SQL_MAX_ROWS:-1000}
+      - SQL_TIMEOUT=${SQL_TIMEOUT:-30000}
     volumes:
       - ${CSV_EXPORT_HOST_PATH:-./powerbi_exports}:/data/powerbi_exports
     networks:

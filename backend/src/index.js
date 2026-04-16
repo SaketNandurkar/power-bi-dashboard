@@ -14,6 +14,7 @@ const exportRouter = require('./routes/export');
 const analyticsRouter = require('./routes/analytics');
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
+const chatbotRouter = require('./routes/chatbot');
 const { authenticate, authorize } = require('./middleware/authMiddleware');
 const { startScheduler } = require('./services/sapScheduler');
 const { seedAdmin } = require('./utils/seedAdmin');
@@ -70,6 +71,7 @@ app.use('/api/auth', authRouter);                                       // publi
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() })); // public
 app.use('/api/status', authenticate, statusRouter);
 app.use('/api/analytics', authenticate, analyticsRouter);
+app.use('/api/chatbot', authenticate, chatbotRouter);                   // AI chatbot
 app.use('/api/sap', authenticate, authorize('ADMIN'), sapRouter);
 app.use('/api/export', authenticate, authorize('ADMIN'), exportRouter);
 app.use('/api/users', authenticate, authorize('ADMIN'), usersRouter);

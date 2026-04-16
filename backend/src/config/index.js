@@ -24,5 +24,18 @@ module.exports = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
 
   // CSV Export
-  csvExportPath: process.env.CSV_EXPORT_PATH || '/data/powerbi_exports'
+  csvExportPath: process.env.CSV_EXPORT_PATH || '/data/powerbi_exports',
+
+  // AI Chatbot Configuration
+  aiServiceEnabled: process.env.AI_SERVICE_ENABLED !== 'false',
+  openaiApiKey: process.env.OPENAI_API_KEY || '',
+  openaiBaseUrl: process.env.OPENAI_BASE_URL || undefined, // For Groq, OpenRouter, etc.
+  openaiModel: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
+  openaiMaxTokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 1500,
+  openaiTemperature: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.1,
+  aiRequestTimeout: parseInt(process.env.AI_REQUEST_TIMEOUT, 10) || 30000,
+
+  // SQL Safety Limits
+  sqlMaxRows: parseInt(process.env.SQL_MAX_ROWS, 10) || 1000,
+  sqlTimeout: parseInt(process.env.SQL_TIMEOUT, 10) || 30000
 };

@@ -35,6 +35,12 @@ export default function Sidebar({ activeView, onViewChange, user, isOpen, onClos
       section: 'insights'
     },
     {
+      id: 'chatbot',
+      label: 'AI Assistant',
+      icon: ChartIcon,
+      section: 'insights'
+    },
+    {
       id: 'users',
       label: 'User Management',
       icon: UsersIcon,
