@@ -3,11 +3,7 @@ const config = require('../config');
 const logger = require('../utils/logger');
 
 const pool = new Pool({
-  host: config.postgresHost,
-  port: config.postgresPort,
-  user: config.postgresUser,
-  password: config.postgresPassword,
-  database: config.postgresDatabase,
+  connectionString: config.databaseUrl,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000
