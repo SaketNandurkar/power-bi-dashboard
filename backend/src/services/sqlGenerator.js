@@ -39,11 +39,15 @@ async function getSchemaContext() {
 
     // Build schema description
     let schemaText = 'Available Tables/Views:\n\n';
+    schemaText += 'IMPORTANT: Column names with spaces or special characters MUST be wrapped in double quotes.\n\n';
 
     for (const [tableName, columns] of Object.entries(tables)) {
       schemaText += `${tableName}:\n`;
       columns.forEach(col => {
-        schemaText += `  - ${col.name} (${col.type})${col.nullable ? ' NULL' : ''}\n`;
+        // Check if column name needs quoting (has spaces, special chars, or starts with space)
+        const needsQuotes = /[\s\-\/\.]/.test(col.name) || col.name !== col.name.toLowerCase();
+        const columnDisplay = needsQuotes ? `"${col.name}"` : col.name;
+        schemaText += `  - ${columnDisplay} (${col.type})${col.nullable ? ' NULL' : ''}\n`;
       });
       schemaText += '\n';
     }
@@ -54,25 +58,32 @@ Business Context:
 
 curated.v_sales_register:
   - Contains invoice-level sales data
-  - group_name: Customer grouping (APPL, Waymade PLC, Navinta, CMO sales, scrap)
-  - fiscal_year: Financial year (April-March)
-  - total: Total invoice amount including tax (in INR)
-  - net_value: Invoice amount before tax
+  - "Fiscal Year": Financial year (April-March)
+  - " Total": Total invoice amount including tax (in INR) - NOTE: column name has a leading space, use " Total" with quotes
+  - "Net Value": Invoice amount before tax
 
 curated.v_accounts_payable:
   - Contains vendor payment data
-  - Classification categories: formulation_plant, capex, rm_pm, service, opex
-  - debit_credit: 'H' for debit, 'S' for credit
-  - local_amount: Transaction amount (in INR)
+  - "Debit/Credit": 'H' for debit, 'S' for credit
+  - "Local Amount": Transaction amount (in INR)
+  - "Posting Date": Date of transaction
 
 curated.v_budget_report:
   - Budget allocations by group and month
-  - budget_cr: Budget amount in crores (multiply by 10,000,000 for rupees)
+  - "BUDGET_CR": Budget amount in crores (multiply by 10,000,000 for rupees)
+  - "GROUP": Customer group name
+  - "ZMONTH": Month
 
 curated.v_bank_report:
   - Bank account balances
-  - parent_bank: HDFC, SBI, ICICI, UCO, Yes Bank
-  - balance: Current account balance (in INR)
+  - "Balance": Current account balance (in INR)
+  - "G/L Account": GL account number
+
+QUERY RULES:
+- Always use SELECT statements only
+- Column names with spaces MUST be in double quotes: SELECT " Total" FROM curated.v_sales_register
+- Use LIMIT clause (max 1000 rows)
+- Filter by date using "Invoice Date", "Posting Date" etc with proper quotes
 `;
 
     logger.info('Schema context built successfully', {
