@@ -1,9 +1,19 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
 module.exports = {
   port: parseInt(process.env.PORT, 10) || 3001,
   nodeEnv: process.env.NODE_ENV || 'development',
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://aposap_user:aposap@2026@localhost:5432/aposap_dashboards',
+
+  // PostgreSQL Connection (individual params to handle special characters in password)
+  postgresHost: process.env.POSTGRES_HOST || '127.0.0.1',
+  postgresPort: parseInt(process.env.POSTGRES_PORT, 10) || 5432,
+  postgresUser: process.env.POSTGRES_USER || 'aposap_user',
+  postgresPassword: process.env.POSTGRES_PASSWORD || 'Aposap@2026',
+  postgresDatabase: process.env.POSTGRES_DATABASE || 'aposap_dashboards',
+
+  // Legacy connection string (kept for compatibility)
+  databaseUrl: process.env.DATABASE_URL || 'postgresql://aposap_user:Aposap@2026@localhost:5432/aposap_dashboards',
   corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:3000,https://apothecon.bizwareinternational.com').split(',').map(s => s.trim()),
   rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 900000,
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
