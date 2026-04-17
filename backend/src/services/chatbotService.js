@@ -129,24 +129,18 @@ async function sendMessage(conversationId, userId, message, requestId) {
       duration: queryDuration
     });
 
-    // 8. Generate natural language response
+    // 8. Generate conversational business insights
     const nlResponse = await aiService.generateNLResponse(
       message,
       validation.sanitized,
+      queryResult.rowCount,
       queryResult.rows
     );
 
-    // 9. Format final response
-    const assistantMessage = `${nlResponse.response}
+    // 9. Format final response (conversational only, hide SQL)
+    const assistantMessage = nlResponse.response;
 
-**SQL Query:**
-\`\`\`sql
-${validation.sanitized}
-\`\`\`
-
-**Results:** ${queryResult.rowCount} row(s) returned`;
-
-    // 10. Save assistant message
+    // 10. Save assistant message (SQL stored separately for audit)
     await pool.query(
       `INSERT INTO ai.messages (
         conversation_id, role, content, sql_query,
@@ -154,8 +148,8 @@ ${validation.sanitized}
       ) VALUES ($1, 'assistant', $2, $3, $4, $5, $6)`,
       [
         conversationId,
-        assistantMessage,
-        validation.sanitized,
+        assistantMessage, // Only conversational text shown to user
+        validation.sanitized, // SQL saved for audit/debugging
         queryResult.rowCount,
         tokens + nlResponse.tokens,
         Date.now() - startTime
@@ -164,7 +158,7 @@ ${validation.sanitized}
 
     return {
       content: assistantMessage,
-      sql: validation.sanitized,
+      sql: validation.sanitized, // Still returned for debugging (not shown in UI)
       results: queryResult.rows,
       rowCount: queryResult.rowCount,
       tokensUsed: tokens + nlResponse.tokens,
@@ -178,10 +172,25 @@ ${validation.sanitized}
       error: err.message
     });
 
-    // Save error message
-    const errorMessage = `I encountered an error: ${err.message}
+    // Generate helpful error message based on error type
+    let errorMessage;
+    if (err.message.includes('column') && err.message.includes('does not exist')) {
+      errorMessage = `I apologize, but I couldn't find that data in our system. Could you try rephrasing your question or ask about something else?
 
-Please try rephrasing your question or ask something else.`;
+Try asking about sales, budgets, accounts payable, or bank balances.`;
+    } else if (err.message.includes('Query must start with SELECT')) {
+      errorMessage = `I can only help you retrieve and analyze data. I cannot modify or delete information.
+
+What insights would you like to see from your business data?`;
+    } else if (err.message.includes('AI failed to generate')) {
+      errorMessage = `I'm having trouble understanding that question. Could you rephrase it or try asking something more specific?
+
+For example: "What were total sales last month?" or "Show me current bank balance"`;
+    } else {
+      errorMessage = `I encountered an issue processing your request. Let's try a different question!
+
+You can ask me about sales data, budgets, vendor payments, or account balances.`;
+    }
 
     await pool.query(
       `INSERT INTO ai.messages (conversation_id, role, content, error)

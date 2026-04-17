@@ -66,49 +66,70 @@ async function generateSQL(question, schemaContext, conversationHistory = []) {
  * Build system prompt with schema context and safety rules
  */
 function buildSystemPrompt(schemaContext) {
-  return `You are a SQL expert assistant for the Bizware Analytics Platform.
+  return `You are a business intelligence analyst for Bizware Analytics Platform. Your role is to help users understand their business data through natural conversation.
 
 DATABASE SCHEMA:
 ${schemaContext}
 
-BUSINESS RULES:
-- Fiscal year runs April to March (use fiscal_year column)
-- Sales are grouped by: APPL, Waymade PLC, Navinta, CMO sales, scrap
-- Accounts Payable classifications: formulation_plant, capex, rm_pm, service, opex
-- All monetary values are in INR (Indian Rupees)
+BUSINESS CONTEXT:
+- Fiscal year: April to March (use "Fiscal Year" column)
+- Sales divisions: APPL, Waymade PLC, Navinta, CMO sales, scrap
+- AP categories: formulation_plant, capex, rm_pm, service, opex
+- Currency: All amounts in INR (Indian Rupees)
+- Current date: ${new Date().toISOString().split('T')[0]}
 
-STRICT REQUIREMENTS:
-1. ONLY generate SELECT queries (no INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE)
+SQL GENERATION RULES:
+1. ONLY SELECT queries (no INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE)
 2. ONLY query curated.v_* views (never raw.* tables)
-3. Always include LIMIT clause (max ${config.sqlMaxRows} rows)
+3. Always include LIMIT ${config.sqlMaxRows}
 4. Use proper date formatting (YYYY-MM-DD)
-5. Handle NULL values gracefully
-6. Use meaningful column aliases
+5. Handle NULLs gracefully
+6. CRITICAL: Column names with spaces MUST be in double quotes
 
 RESPONSE FORMAT:
-Provide your response in this format:
+Generate TWO parts:
 
-SQL:
+1. SQL query (hidden from user):
 \`\`\`sql
 [Your SELECT query here]
 \`\`\`
 
-EXPLANATION:
-[Brief explanation of what the query does and what insights it provides]
+2. Conversational business answer (shown to user):
+Write as if you're a business analyst explaining insights to a stakeholder.
 
-Generate safe, efficient PostgreSQL queries only.`;
+- Start with the key finding or direct answer
+- Include specific numbers with proper formatting (₹ for rupees, use billions/crores)
+- Provide context or comparison when relevant (vs last month, vs target, trend)
+- Highlight what's important (use ✅ for good, ⚠️ for needs attention)
+- Keep it concise (2-4 sentences max unless detailed analysis requested)
+- End with a helpful follow-up suggestion if appropriate
+- NEVER show SQL code to the user
+- NEVER say "I executed a query" - just provide the insights
+
+Example good response:
+"Total sales for March 2026 were ₹13.68 billion, representing a 15% increase from February. The growth was primarily driven by the APPL division (₹8.2B, +22%). Would you like to see a breakdown by customer or product category?"
+
+Example bad response:
+"I executed the following SQL query... The results show..."
+
+Generate safe, efficient PostgreSQL queries and provide clear business insights.`;
 }
 
 /**
- * Parse AI response to extract SQL and explanation
+ * Parse AI response to extract SQL and conversational answer
  */
 function parseAIResponse(response) {
   const sqlMatch = response.match(/```sql\n([\s\S]*?)\n```/);
   const sql = sqlMatch ? sqlMatch[1].trim() : null;
 
-  // Extract explanation (everything after "EXPLANATION:")
-  const explanationMatch = response.match(/EXPLANATION:\s*([\s\S]*?)$/i);
-  const explanation = explanationMatch ? explanationMatch[1].trim() : response;
+  // Extract conversational answer (everything after the SQL block)
+  let explanation = response;
+  if (sqlMatch) {
+    // Remove the SQL block from the response to get the conversational part
+    explanation = response.replace(/```sql\n[\s\S]*?\n```/g, '').trim();
+    // Remove common prefixes like "SQL:", "EXPLANATION:", etc.
+    explanation = explanation.replace(/^(SQL:|EXPLANATION:|ANSWER:)\s*/i, '').trim();
+  }
 
   if (!sql) {
     logger.warn('No SQL found in AI response', { response });
@@ -118,29 +139,46 @@ function parseAIResponse(response) {
 }
 
 /**
- * Generate natural language response from query results
+ * Generate conversational business insights from query results
  */
-async function generateNLResponse(question, sqlQuery, results) {
-  const prompt = `The user asked: "${question}"
+async function generateNLResponse(question, sqlQuery, results, rowData = []) {
+  // Format results for better readability
+  const formattedResults = rowData.slice(0, 10).map(row =>
+    row.map(cell => {
+      if (cell === null) return 'NULL';
+      if (typeof cell === 'number') {
+        // Format large numbers
+        if (cell > 1000000) return `${(cell / 1000000).toFixed(2)}M`;
+        if (cell > 1000) return `${(cell / 1000).toFixed(2)}K`;
+        return cell.toFixed(2);
+      }
+      return cell;
+    })
+  );
 
-We executed this SQL query:
-\`\`\`sql
-${sqlQuery}
-\`\`\`
+  const prompt = `You are a business analyst. A user asked: "${question}"
 
-Results (${results.length} rows):
-${JSON.stringify(results.slice(0, 5), null, 2)}
-${results.length > 5 ? `\n... and ${results.length - 5} more rows` : ''}
+Query Results (${results.length} total rows):
+${JSON.stringify(formattedResults, null, 2)}
+${results.length > 10 ? `\n... and ${results.length - 10} more rows` : ''}
 
-Provide a concise, business-friendly summary of these results in 2-3 sentences.
-Include specific numbers and insights. Use Indian Rupee symbol (₹) for monetary values.`;
+Provide a conversational, insightful answer that:
+1. Directly answers their question with specific numbers
+2. Uses ₹ symbol for rupees (format large amounts as billions/crores)
+3. Provides context or comparison when relevant
+4. Highlights key insights (use ✅ ⚠️ 📊 📈 sparingly)
+5. Is concise (2-4 sentences unless detailed analysis needed)
+6. Optionally suggests a helpful follow-up question
+7. NEVER mentions "query" or "database" - just provide insights
+
+Write as if you're explaining to a business stakeholder, not a technical user.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: config.openaiModel,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
-      max_tokens: 300,
+      max_tokens: 400,
     });
 
     return {
@@ -149,8 +187,18 @@ Include specific numbers and insights. Use Indian Rupee symbol (₹) for monetar
     };
   } catch (err) {
     logger.error('Failed to generate NL response', { error: err.message });
+    // Fallback: Simple summary
+    if (results.length === 1 && rowData[0] && rowData[0].length === 1) {
+      const value = rowData[0][0];
+      if (typeof value === 'number' && value > 1000000) {
+        return {
+          response: `The answer is ₹${(value / 10000000).toFixed(2)} crores.`,
+          tokens: 0
+        };
+      }
+    }
     return {
-      response: `Query returned ${results.length} rows.`,
+      response: `Found ${results.length} result(s) for your question.`,
       tokens: 0
     };
   }
