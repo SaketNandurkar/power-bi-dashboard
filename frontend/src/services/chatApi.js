@@ -63,3 +63,14 @@ export async function sendMessage(conversationId, message) {
   if (!response.ok) throw new Error(data.message || 'Failed to send message');
   return data.message;
 }
+
+export async function deleteConversation(conversationId) {
+  const response = await authFetch(
+    `${API_URL}/api/chatbot/conversations/${conversationId}`,
+    { method: 'DELETE' }
+  );
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to delete conversation');
+  return data;
+}

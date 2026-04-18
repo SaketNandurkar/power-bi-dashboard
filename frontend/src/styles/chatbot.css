@@ -39,6 +39,10 @@
   border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
   transition: background 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .conversation-item:hover {
@@ -50,10 +54,36 @@
   border-left: 3px solid #1976d2;
 }
 
+.conv-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .conv-title {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delete-conv-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.delete-conv-btn:hover {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
 }
 
 .conv-date {

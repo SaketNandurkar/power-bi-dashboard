@@ -4,7 +4,8 @@ import {
   createConversation,
   getUserConversations,
   getConversation,
-  sendMessage
+  sendMessage,
+  deleteConversation
 } from '../services/chatApi';
 import '../styles/chatbot.css';
 
@@ -70,6 +71,34 @@ export default function ChatbotPanel({ user }) {
     }
   };
 
+  const handleDeleteConversation = async (e, convId) => {
+    e.stopPropagation(); // Prevent selecting the conversation
+
+    if (!window.confirm('Are you sure you want to delete this conversation?')) {
+      return;
+    }
+
+    try {
+      await deleteConversation(convId);
+
+      // Remove from local state
+      setConversations(prev => prev.filter(c => c.id !== convId));
+
+      // If deleted conversation was active, clear or select another
+      if (activeId === convId) {
+        const remaining = conversations.filter(c => c.id !== convId);
+        if (remaining.length > 0) {
+          setActiveId(remaining[0].id);
+        } else {
+          setActiveId(null);
+          setMessages([]);
+        }
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || !activeId) return;
@@ -124,10 +153,19 @@ export default function ChatbotPanel({ user }) {
               className={`conversation-item ${activeId === conv.id ? 'active' : ''}`}
               onClick={() => setActiveId(conv.id)}
             >
-              <div className="conv-title">{conv.title}</div>
-              <div className="conv-date">
-                {new Date(conv.updated_at).toLocaleDateString()}
+              <div className="conv-content">
+                <div className="conv-title">{conv.title}</div>
+                <div className="conv-date">
+                  {new Date(conv.updated_at).toLocaleDateString()}
+                </div>
               </div>
+              <button
+                className="delete-conv-btn"
+                onClick={(e) => handleDeleteConversation(e, conv.id)}
+                title="Delete conversation"
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>

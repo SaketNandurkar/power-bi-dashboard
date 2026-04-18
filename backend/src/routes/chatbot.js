@@ -113,4 +113,39 @@ router.post('/conversations/:id/messages', authenticate, async (req, res, next) 
   }
 });
 
+/**
+ * DELETE /api/chatbot/conversations/:id
+ * Delete conversation and all its messages
+ */
+router.delete('/conversations/:id', authenticate, async (req, res, next) => {
+  try {
+    const deleted = await chatbotService.deleteConversation(
+      req.params.id,
+      req.user.id
+    );
+
+    if (!deleted) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Conversation not found or access denied',
+        requestId: req.requestId
+      });
+    }
+
+    logger.info('Conversation deleted', {
+      requestId: req.requestId,
+      conversationId: req.params.id,
+      userId: req.user.id
+    });
+
+    res.json({
+      status: 'success',
+      message: 'Conversation deleted successfully',
+      requestId: req.requestId
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

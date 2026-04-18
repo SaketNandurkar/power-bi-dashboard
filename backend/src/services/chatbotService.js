@@ -202,9 +202,23 @@ You can ask me about sales data, budgets, vendor payments, or account balances.`
   }
 }
 
+/**
+ * Delete conversation and all its messages
+ */
+async function deleteConversation(conversationId, userId) {
+  // Verify ownership before deleting
+  const result = await pool.query(
+    'DELETE FROM ai.conversations WHERE id = $1 AND user_id = $2 RETURNING id',
+    [conversationId, userId]
+  );
+
+  return result.rowCount > 0;
+}
+
 module.exports = {
   createConversation,
   getConversation,
   getUserConversations,
   sendMessage,
+  deleteConversation,
 };
