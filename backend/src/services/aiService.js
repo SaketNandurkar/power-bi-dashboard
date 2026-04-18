@@ -142,8 +142,11 @@ function parseAIResponse(response) {
  * Generate conversational business insights from query results
  */
 async function generateNLResponse(question, sqlQuery, results, rowData = []) {
+  // Convert row objects to arrays of values for formatting
+  const rowArrays = rowData.map(row => Object.values(row));
+
   // Format results for better readability
-  const formattedResults = rowData.slice(0, 10).map(row =>
+  const formattedResults = rowArrays.slice(0, 10).map(row =>
     row.map(cell => {
       if (cell === null) return 'NULL';
       if (typeof cell === 'number') {
@@ -188,8 +191,9 @@ Write as if you're explaining to a business stakeholder, not a technical user.`;
   } catch (err) {
     logger.error('Failed to generate NL response', { error: err.message });
     // Fallback: Simple summary
-    if (results.length === 1 && rowData[0] && rowData[0].length === 1) {
-      const value = rowData[0][0];
+    const firstRowValues = rowData[0] ? Object.values(rowData[0]) : [];
+    if (results === 1 && firstRowValues.length === 1) {
+      const value = firstRowValues[0];
       if (typeof value === 'number' && value > 1000000) {
         return {
           response: `The answer is ₹${(value / 10000000).toFixed(2)} crores.`,
