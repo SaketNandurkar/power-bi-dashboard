@@ -42,8 +42,13 @@ async function getSalesBudgetComparison(period = 'last_month', customerGroup = n
           SUM(s." Total") as actual_sales
         FROM curated.v_sales_register s
         WHERE 1=1 ${dateFilter}
-          ${customerGroup ? `AND customer_group = '${customerGroup}'` : ''}
-        GROUP BY customer_group
+        GROUP BY (CASE
+            WHEN s."Billing Type" = 'ZSC1' THEN 'scrap'
+            WHEN s."Bill To Name" ILIKE '%waymade%' THEN 'Waymade PLC'
+            WHEN s."Bill To Name" ILIKE '%navinta%' OR s."Bill To Name" ILIKE '%immacule%' THEN 'Navinta'
+            WHEN s."Bill To Name" IN ('11001163', '11001275', '11001340') THEN 'CMO sales'
+            ELSE 'APPL'
+          END)
       ),
       budget_target AS (
         SELECT
@@ -55,8 +60,11 @@ async function getSalesBudgetComparison(period = 'last_month', customerGroup = n
           SUM(b."BUDGET_CR" * 10000000) as budget_amount
         FROM curated.v_budget_report b
         WHERE b."Year" = ${currentFY}
-          ${period === 'last_month' ? `AND b."ZMONTH" = '${new Date(now.getFullYear(), now.getMonth() - 1).toLocaleString('default', { month: 'long' })}'` : ''}
-        GROUP BY customer_group
+        GROUP BY (CASE
+            WHEN b."GROUP" = 'CMO Sales for Mfg our FG' THEN 'CMO sales'
+            WHEN b."GROUP" = 'Scrap & Others Sales' THEN 'scrap'
+            ELSE b."GROUP"
+          END)
       )
       SELECT
         COALESCE(s.customer_group, b.customer_group) as customer_group,
