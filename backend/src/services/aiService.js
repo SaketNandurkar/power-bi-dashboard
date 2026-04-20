@@ -141,8 +141,13 @@ function parseAIResponse(response) {
 
 /**
  * Generate conversational business insights from query results
+ * @param {string} question - Current user question
+ * @param {string} sqlQuery - SQL query executed
+ * @param {number} results - Number of result rows
+ * @param {Array} rowData - Query result data
+ * @param {Array} conversationHistory - Previous messages for context
  */
-async function generateNLResponse(question, sqlQuery, results, rowData = []) {
+async function generateNLResponse(question, sqlQuery, results, rowData = [], conversationHistory = []) {
   // Get business context (budget, YoY, trends, alerts)
   const context = await businessContext.getBusinessContext(question, rowData);
 
@@ -193,7 +198,16 @@ async function generateNLResponse(question, sqlQuery, results, rowData = []) {
     });
   }
 
-  const prompt = `You are a C-level business advisor for Bizware Analytics. A user asked: "${question}"
+  // Build conversation context (exclude current message which was just added)
+  const recentHistory = conversationHistory
+    .slice(-8, -1) // Last 7 messages (excluding the current one)
+    .filter(msg => msg.role !== 'system')
+    .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+    .join('\n');
+
+  const prompt = `You are a C-level business advisor for Bizware Analytics.
+
+${recentHistory ? `CONVERSATION HISTORY (for context):\n${recentHistory}\n\n` : ''}Current user question: "${question}"
 
 Query Results (${results.length} total rows):
 ${JSON.stringify(formattedResults, null, 2)}
@@ -215,13 +229,15 @@ Present the main finding with proper formatting (₹ symbol, crores/billions)
 What action should leadership take? Be specific and actionable.
 
 CRITICAL RULES:
-1. Start with the KEY NUMBER in bold - this is what executives see first
-2. Use business context from above (budget variance, YoY, trends, alerts)
-3. Format large amounts: ₹XX.XX Cr (crores) or ₹XX.XX Bn (billions)
-4. Be decisive: Don't say "consider" - say "should focus on" or "need to address"
-5. Keep concise: 3-5 sentences total
-6. NEVER mention "query", "database", or technical details
-7. Write for C-executives who need to make decisions quickly
+1. Use conversation history to understand context - if user says "what should be the action plan then", understand what "then" refers to
+2. Start with the KEY NUMBER in bold - this is what executives see first
+3. Use business context from above (budget variance, YoY, trends, alerts)
+4. Format large amounts: ₹XX.XX Cr (crores) or ₹XX.XX Bn (billions)
+5. Be decisive: Don't say "consider" - say "should focus on" or "need to address"
+6. Be proactive: Don't ask follow-up questions like "Would you like to know more?" - just provide complete analysis
+7. Keep concise but complete: 3-5 sentences with actionable recommendations
+8. NEVER mention "query", "database", or technical details
+9. Write for C-executives who need to make decisions quickly
 
 Example:
 **₹13.68 Cr total sales in March 2026**

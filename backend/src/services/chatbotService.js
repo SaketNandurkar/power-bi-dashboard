@@ -129,12 +129,13 @@ async function sendMessage(conversationId, userId, message, requestId) {
       duration: queryDuration
     });
 
-    // 8. Generate conversational business insights
+    // 8. Generate conversational business insights with conversation context
     const nlResponse = await aiService.generateNLResponse(
       message,
       validation.sanitized,
       queryResult.rowCount,
-      queryResult.rows
+      queryResult.rows,
+      history // Pass conversation history for context-aware responses
     );
 
     // 9. Format final response (conversational only, hide SQL)
