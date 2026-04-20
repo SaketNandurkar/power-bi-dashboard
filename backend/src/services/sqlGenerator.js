@@ -1,13 +1,45 @@
 const { pool } = require('./dbService');
 const logger = require('../utils/logger');
 
+// Cache for schema context (refreshed every hour or manually)
+let schemaCache = {
+  data: null,
+  timestamp: null,
+  ttl: 60 * 60 * 1000 // 1 hour in milliseconds
+};
+
 /**
- * Get database schema context for AI
+ * Invalidate schema cache (call this when schema changes)
+ */
+function invalidateSchemaCache() {
+  schemaCache.data = null;
+  schemaCache.timestamp = null;
+  logger.info('Schema cache invalidated');
+}
+
+/**
+ * Get database schema context for AI (with caching)
  * Includes table/view names, columns, and business logic
+ * @param {boolean} forceRefresh - Force rebuild cache
  * @returns {Promise<string>} Schema description
  */
-async function getSchemaContext() {
-  logger.info('Building schema context for AI');
+async function getSchemaContext(forceRefresh = false) {
+  // Check cache first
+  const now = Date.now();
+  const cacheValid = schemaCache.data &&
+                     schemaCache.timestamp &&
+                     (now - schemaCache.timestamp) < schemaCache.ttl;
+
+  if (cacheValid && !forceRefresh) {
+    logger.info('Using cached schema context', {
+      age: Math.round((now - schemaCache.timestamp) / 1000) + 's'
+    });
+    return schemaCache.data;
+  }
+
+  logger.info('Building schema context for AI', {
+    reason: forceRefresh ? 'forced' : 'cache_expired'
+  });
 
   try {
     const result = await pool.query(`
@@ -91,6 +123,10 @@ QUERY RULES:
       contextLength: schemaText.length
     });
 
+    // Cache the result
+    schemaCache.data = schemaText;
+    schemaCache.timestamp = Date.now();
+
     return schemaText;
   } catch (err) {
     logger.error('Failed to build schema context', { error: err.message });
@@ -98,4 +134,7 @@ QUERY RULES:
   }
 }
 
-module.exports = { getSchemaContext };
+module.exports = {
+  getSchemaContext,
+  invalidateSchemaCache
+};

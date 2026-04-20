@@ -52,6 +52,44 @@ router.get('/conversations', authenticate, async (req, res, next) => {
 });
 
 /**
+ * GET /api/chatbot/suggestions
+ * Get smart suggested questions
+ */
+router.get('/suggestions', authenticate, async (req, res, next) => {
+  try {
+    const suggestions = await chatbotService.getSuggestedQuestions();
+
+    res.json({
+      status: 'success',
+      suggestions,
+      requestId: req.requestId
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/chatbot/search?q=query
+ * Search conversations and messages
+ */
+router.get('/search', authenticate, async (req, res, next) => {
+  try {
+    const { q } = req.query;
+    const results = await chatbotService.searchConversations(req.user.id, q);
+
+    res.json({
+      status: 'success',
+      results,
+      count: results.length,
+      requestId: req.requestId
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/chatbot/conversations/:id
  * Get conversation with messages
  */

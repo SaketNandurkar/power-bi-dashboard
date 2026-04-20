@@ -5,7 +5,9 @@ import {
   getUserConversations,
   getConversation,
   sendMessage,
-  deleteConversation
+  deleteConversation,
+  getSuggestedQuestions,
+  searchConversations
 } from '../services/chatApi';
 import '../styles/chatbot.css';
 
@@ -16,11 +18,17 @@ export default function ChatbotPanel({ user }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const messagesEndRef = useRef(null);
+  const searchTimeoutRef = useRef(null);
 
-  // Load conversations on mount
+  // Load conversations and suggestions on mount
   useEffect(() => {
     loadConversations();
+    loadSuggestions();
   }, []);
 
   // Auto-scroll to bottom when new messages arrive
@@ -56,6 +64,57 @@ export default function ChatbotPanel({ user }) {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const loadSuggestions = async () => {
+    try {
+      const sugg = await getSuggestedQuestions();
+      setSuggestions(sugg || []);
+    } catch (err) {
+      console.error('Failed to load suggestions:', err);
+    }
+  };
+
+  const handleSuggestionClick = (question) => {
+    setInput(question);
+    // Auto-focus input field
+    document.querySelector('.chat-input')?.focus();
+  };
+
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+
+    // Debounce search
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await searchConversations(query);
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Search failed:', err);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setIsSearching(false);
   };
 
   const handleNewConversation = async () => {
@@ -146,8 +205,30 @@ export default function ChatbotPanel({ user }) {
           + New Chat
         </button>
 
+        {/* Search bar */}
+        <div className="search-container">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="🔍 Search conversations..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="clear-search-btn" onClick={clearSearch}>
+              ×
+            </button>
+          )}
+        </div>
+
         <div className="conversation-list">
-          {conversations.map(conv => (
+          {isSearching && <div className="search-loading">Searching...</div>}
+
+          {searchQuery && searchResults.length === 0 && !isSearching && (
+            <div className="no-results">No conversations found</div>
+          )}
+
+          {(searchQuery ? searchResults : conversations).map(conv => (
             <div
               key={conv.id}
               className={`conversation-item ${activeId === conv.id ? 'active' : ''}`}
@@ -183,14 +264,30 @@ export default function ChatbotPanel({ user }) {
         <div className="messages-container">
           {messages.length === 0 && (
             <div className="empty-state">
-              <h3>Welcome to AI Assistant!</h3>
-              <p>Ask me anything about your business data:</p>
-              <ul>
-                <li>"What were total sales last month?"</li>
-                <li>"Show me top 5 customers by revenue"</li>
-                <li>"What's our current bank balance?"</li>
-                <li>"Compare sales this year vs last year"</li>
-              </ul>
+              <h3>Welcome to AI Assistant! 👋</h3>
+              <p>Ask me anything about your business data, or try these suggestions:</p>
+
+              <div className="suggestions-grid">
+                {suggestions.map((category, idx) => (
+                  <div key={idx} className="suggestion-category">
+                    <div className="category-header">
+                      <span className="category-icon">{category.icon}</span>
+                      <span className="category-name">{category.category}</span>
+                    </div>
+                    <div className="suggestion-questions">
+                      {category.questions.map((question, qIdx) => (
+                        <button
+                          key={qIdx}
+                          className="suggestion-btn"
+                          onClick={() => handleSuggestionClick(question)}
+                        >
+                          {question}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

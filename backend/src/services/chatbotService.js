@@ -215,10 +215,111 @@ async function deleteConversation(conversationId, userId) {
   return result.rowCount > 0;
 }
 
+/**
+ * Search conversations and messages
+ */
+async function searchConversations(userId, searchTerm) {
+  if (!searchTerm || searchTerm.trim().length < 2) {
+    return [];
+  }
+
+  const query = `
+    SELECT DISTINCT
+      c.id,
+      c.title,
+      c.updated_at,
+      m.content as matched_content,
+      m.created_at as match_time
+    FROM ai.conversations c
+    INNER JOIN ai.messages m ON m.conversation_id = c.id
+    WHERE c.user_id = $1
+      AND (
+        m.content ILIKE $2
+        OR c.title ILIKE $2
+      )
+    ORDER BY c.updated_at DESC
+    LIMIT 20
+  `;
+
+  const result = await pool.query(query, [userId, `%${searchTerm}%`]);
+  return result.rows;
+}
+
+/**
+ * Get smart suggested questions based on context
+ */
+async function getSuggestedQuestions() {
+  const suggestions = [];
+  const now = new Date();
+  const currentMonth = now.toLocaleString('default', { month: 'long' });
+
+  try {
+    // Time-based suggestions
+    const dayOfMonth = now.getDate();
+    if (dayOfMonth >= 25) {
+      suggestions.push({
+        category: 'Month End',
+        icon: '📅',
+        questions: [
+          `What were total sales in ${currentMonth}?`,
+          'Show me top 5 customers this month',
+          'Current bank balance?'
+        ]
+      });
+    }
+
+    // Always useful questions
+    suggestions.push({
+      category: 'Sales Analysis',
+      icon: '💰',
+      questions: [
+        'What were total sales last month?',
+        'Compare sales this year vs last year',
+        'Show me top 10 customers by revenue'
+      ]
+    });
+
+    suggestions.push({
+      category: 'Financial Health',
+      icon: '📊',
+      questions: [
+        'What is our current bank balance?',
+        'Show pending accounts payable',
+        'Budget vs actual for this month'
+      ]
+    });
+
+    suggestions.push({
+      category: 'Trends',
+      icon: '📈',
+      questions: [
+        'Sales trend for last 6 months',
+        'Month-over-month growth rate',
+        'Which divisions are growing fastest?'
+      ]
+    });
+
+    return suggestions;
+  } catch (err) {
+    logger.error('Failed to generate suggestions', { error: err.message });
+    return [{
+      category: 'Quick Start',
+      icon: '🚀',
+      questions: [
+        'What were total sales last month?',
+        'Show me current bank balance',
+        'Top 5 customers by revenue'
+      ]
+    }];
+  }
+}
+
 module.exports = {
   createConversation,
   getConversation,
   getUserConversations,
   sendMessage,
   deleteConversation,
+  getSuggestedQuestions,
+  searchConversations,
 };

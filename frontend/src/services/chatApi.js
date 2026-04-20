@@ -74,3 +74,19 @@ export async function deleteConversation(conversationId) {
   if (!response.ok) throw new Error(data.message || 'Failed to delete conversation');
   return data;
 }
+
+export async function getSuggestedQuestions() {
+  const response = await authFetch(`${API_URL}/api/chatbot/suggestions`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to fetch suggestions');
+  return data.suggestions;
+}
+
+export async function searchConversations(query) {
+  if (!query || query.trim().length < 2) return [];
+
+  const response = await authFetch(`${API_URL}/api/chatbot/search?q=${encodeURIComponent(query)}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to search');
+  return data.results;
+}
