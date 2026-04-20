@@ -149,7 +149,15 @@ function parseAIResponse(response) {
  */
 async function generateNLResponse(question, sqlQuery, results, rowData = [], conversationHistory = []) {
   // Get business context (budget, YoY, trends, alerts)
-  const context = await businessContext.getBusinessContext(question, rowData);
+  // Wrapped in try-catch to prevent context failures from breaking the response
+  let context = { budget_comparison: null, yoy_comparison: null, trend: null, alerts: [] };
+  try {
+    context = await businessContext.getBusinessContext(question, rowData);
+  } catch (contextErr) {
+    logger.warn('Failed to get business context, continuing with basic response', {
+      error: contextErr.message
+    });
+  }
 
   // Convert row objects to arrays of values for formatting
   const rowArrays = rowData.map(row => Object.values(row));
