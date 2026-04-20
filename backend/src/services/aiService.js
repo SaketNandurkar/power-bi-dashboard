@@ -1,6 +1,7 @@
 const OpenAI = require('openai');
 const logger = require('../utils/logger');
 const config = require('../config');
+const businessContext = require('./businessContext');
 
 // Initialize OpenAI client (supports OpenAI, Groq, OpenRouter, etc.)
 const openai = new OpenAI({
@@ -142,6 +143,9 @@ function parseAIResponse(response) {
  * Generate conversational business insights from query results
  */
 async function generateNLResponse(question, sqlQuery, results, rowData = []) {
+  // Get business context (budget, YoY, trends, alerts)
+  const context = await businessContext.getBusinessContext(question, rowData);
+
   // Convert row objects to arrays of values for formatting
   const rowArrays = rowData.map(row => Object.values(row));
 
@@ -159,29 +163,79 @@ async function generateNLResponse(question, sqlQuery, results, rowData = []) {
     })
   );
 
-  const prompt = `You are a business analyst. A user asked: "${question}"
+  // Build context section for AI
+  let contextSection = '';
+
+  if (context.budget_comparison && context.budget_comparison.length > 0) {
+    contextSection += '\n\n📊 BUDGET COMPARISON (Last Month):\n';
+    context.budget_comparison.forEach(group => {
+      const variance = group.variance_pct ? `${group.variance_pct.toFixed(1)}%` : 'N/A';
+      const status = group.variance_pct > 0 ? '✅' : group.variance_pct < -10 ? '⚠️' : '➡️';
+      contextSection += `${status} ${group.customer_group}: ₹${(group.actual / 10000000).toFixed(2)}Cr vs Budget ₹${(group.budget / 10000000).toFixed(2)}Cr (${variance})\n`;
+    });
+  }
+
+  if (context.yoy_comparison && context.yoy_comparison.yoy_growth_pct !== null) {
+    const yoyGrowth = context.yoy_comparison.yoy_growth_pct.toFixed(1);
+    const yoyIcon = context.yoy_comparison.yoy_growth_pct > 0 ? '📈' : '📉';
+    contextSection += `\n${yoyIcon} YEAR-OVER-YEAR: ${yoyGrowth}% growth (FY ${new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1} vs previous FY)\n`;
+  }
+
+  if (context.trend && context.trend.trend) {
+    contextSection += `\n${context.trend.trend}: Last 3 months showing ${context.trend.change_pct}% change\n`;
+  }
+
+  if (context.alerts && context.alerts.length > 0) {
+    contextSection += '\n🚨 ALERTS:\n';
+    context.alerts.forEach(alert => {
+      const icon = alert.severity === 'critical' ? '🔴' : '🟡';
+      contextSection += `${icon} ${alert.message}\n`;
+    });
+  }
+
+  const prompt = `You are a C-level business advisor for Bizware Analytics. A user asked: "${question}"
 
 Query Results (${results.length} total rows):
 ${JSON.stringify(formattedResults, null, 2)}
 ${results.length > 10 ? `\n... and ${results.length - 10} more rows` : ''}
+${contextSection}
 
-Provide a conversational, insightful answer that:
-1. Directly answers their question with specific numbers
-2. Uses ₹ symbol for rupees (format large amounts as billions/crores)
-3. Provides context or comparison when relevant
-4. Highlights key insights (use ✅ ⚠️ 📊 📈 sparingly)
-5. Is concise (2-4 sentences unless detailed analysis needed)
-6. Optionally suggests a helpful follow-up question
-7. NEVER mentions "query" or "database" - just provide insights
+EXECUTIVE RESPONSE FORMAT:
+Your response MUST follow this structure:
 
-Write as if you're explaining to a business stakeholder, not a technical user.`;
+**[KEY NUMBER/METRIC]**
+Present the main finding with proper formatting (₹ symbol, crores/billions)
+
+**Analysis**
+- Provide context: Compare to budget, YoY growth, or trend
+- Highlight what drives the number (which divisions, products, or time periods)
+- Identify if this is good (✅), concerning (⚠️), or critical (🔴)
+
+**Recommendation**
+What action should leadership take? Be specific and actionable.
+
+CRITICAL RULES:
+1. Start with the KEY NUMBER in bold - this is what executives see first
+2. Use business context from above (budget variance, YoY, trends, alerts)
+3. Format large amounts: ₹XX.XX Cr (crores) or ₹XX.XX Bn (billions)
+4. Be decisive: Don't say "consider" - say "should focus on" or "need to address"
+5. Keep concise: 3-5 sentences total
+6. NEVER mention "query", "database", or technical details
+7. Write for C-executives who need to make decisions quickly
+
+Example:
+**₹13.68 Cr total sales in March 2026**
+
+Analysis: This represents 8.5% below budget (₹14.95 Cr target) and shows a 3.2% decline YoY. The shortfall is concentrated in Waymade PLC division (₹2.1 Cr, -15% vs budget). APPL division performed well at ₹8.2 Cr (+4% above target).
+
+Recommendation: Leadership should investigate Waymade PLC's pipeline and consider reallocating sales resources. Schedule review with Waymade account team to understand declining trend.`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: config.openaiModel,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
-      max_tokens: 400,
+      max_tokens: 500,
     });
 
     return {
@@ -190,19 +244,26 @@ Write as if you're explaining to a business stakeholder, not a technical user.`;
     };
   } catch (err) {
     logger.error('Failed to generate NL response', { error: err.message });
-    // Fallback: Simple summary
+    // Fallback: Simple summary with context if available
+    let fallbackResponse = '';
+
     const firstRowValues = rowData[0] ? Object.values(rowData[0]) : [];
     if (results === 1 && firstRowValues.length === 1) {
       const value = firstRowValues[0];
       if (typeof value === 'number' && value > 1000000) {
-        return {
-          response: `The answer is ₹${(value / 10000000).toFixed(2)} crores.`,
-          tokens: 0
-        };
+        fallbackResponse = `**₹${(value / 10000000).toFixed(2)} Cr**\n\n`;
       }
+    } else {
+      fallbackResponse = `Found ${results.length} result(s).\n\n`;
     }
+
+    // Add context alerts if available
+    if (context.alerts && context.alerts.length > 0) {
+      fallbackResponse += '⚠️ ' + context.alerts.map(a => a.message).join(', ');
+    }
+
     return {
-      response: `Found ${results.length} result(s) for your question.`,
+      response: fallbackResponse || `Found ${results.length} result(s) for your question.`,
       tokens: 0
     };
   }
