@@ -293,7 +293,74 @@ Recommendation: Leadership should investigate Waymade PLC's pipeline and conside
   }
 }
 
+/**
+ * Generate strategic response for follow-up/planning questions
+ * @param {string} question - User's strategic question
+ * @param {Array} conversationHistory - Previous messages for context
+ */
+async function generateStrategicResponse(question, conversationHistory = []) {
+  // Build conversation context
+  const recentHistory = conversationHistory
+    .slice(-10) // Last 10 messages for full context
+    .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+    .join('\n');
+
+  const prompt = `You are a C-level business advisor for Bizware Analytics.
+
+CONVERSATION HISTORY:
+${recentHistory}
+
+Current strategic question: "${question}"
+
+The user is asking a follow-up or strategic question based on the conversation above.
+Provide actionable recommendations without querying new data.
+
+RESPONSE FORMAT:
+**[Strategic Recommendation Title]**
+
+**Analysis**
+- Synthesize insights from the conversation history above
+- Identify key issues, trends, or opportunities discussed
+- Reference specific numbers or findings from previous messages
+
+**Action Plan**
+1. [Immediate action] - What to do first (within 1 week)
+2. [Short-term action] - Next steps (within 1 month)
+3. [Long-term action] - Strategic initiatives (3-6 months)
+
+**Expected Outcomes**
+What results should leadership expect from these actions?
+
+CRITICAL RULES:
+1. Base your answer on the CONVERSATION HISTORY - reference specific findings mentioned
+2. Be specific and actionable - "Review Q1 invoices" not "analyze data"
+3. Prioritize actions by urgency and impact
+4. Keep concise - 4-6 sentences total
+5. Don't say "based on the data" - say "based on the ₹X.XX finding we discussed"`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: config.openaiModel,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4, // Slightly higher for creative strategic thinking
+      max_tokens: 600,
+    });
+
+    return {
+      response: completion.choices[0].message.content,
+      tokens: completion.usage.total_tokens
+    };
+  } catch (err) {
+    logger.error('Failed to generate strategic response', { error: err.message });
+    return {
+      response: 'Based on our discussion, leadership should focus on the key findings we identified. Could you specify which aspect you\'d like to explore further?',
+      tokens: 0
+    };
+  }
+}
+
 module.exports = {
   generateSQL,
   generateNLResponse,
+  generateStrategicResponse,
 };

@@ -98,10 +98,56 @@ async function sendMessage(conversationId, userId, message, requestId) {
       content: h.content
     }));
 
-    // 4. Get schema context
+    // 4. Detect if this is a strategic/follow-up question that doesn't need SQL
+    const isStrategicQuestion =
+      message.toLowerCase().includes('action plan') ||
+      message.toLowerCase().includes('what should') ||
+      message.toLowerCase().includes('how can we') ||
+      message.toLowerCase().includes('strategy') ||
+      message.toLowerCase().includes('recommendation') ||
+      (message.toLowerCase().includes('what') && message.toLowerCase().includes('do')) ||
+      message.length < 30; // Very short questions are likely follow-ups
+
+    // If it's a strategic question AND we have conversation history, answer directly
+    if (isStrategicQuestion && history.length > 2) {
+      logger.info('Detected strategic question, answering without SQL', {
+        requestId,
+        question: message,
+        historyLength: history.length
+      });
+
+      const strategicResponse = await aiService.generateStrategicResponse(
+        message,
+        history
+      );
+
+      // Save assistant message
+      await pool.query(
+        `INSERT INTO ai.messages (
+          conversation_id, role, content, tokens_used, execution_time_ms
+        ) VALUES ($1, 'assistant', $2, $3, $4)`,
+        [
+          conversationId,
+          strategicResponse.response,
+          strategicResponse.tokens,
+          Date.now() - startTime
+        ]
+      );
+
+      return {
+        content: strategicResponse.response,
+        sql: null,
+        results: [],
+        rowCount: 0,
+        tokensUsed: strategicResponse.tokens,
+        duration: Date.now() - startTime
+      };
+    }
+
+    // 5. Get schema context for SQL generation
     const schemaContext = await sqlGenerator.getSchemaContext();
 
-    // 5. Generate SQL from question
+    // 6. Generate SQL from question
     const { sql, explanation, tokens } = await aiService.generateSQL(
       message,
       schemaContext,
@@ -109,7 +155,7 @@ async function sendMessage(conversationId, userId, message, requestId) {
     );
 
     if (!sql) {
-      throw new Error('AI failed to generate SQL query');
+      throw new Error('AI failed to generate SQL query - try asking a more specific data question like "What were sales last month?"');
     }
 
     // 6. Validate SQL
