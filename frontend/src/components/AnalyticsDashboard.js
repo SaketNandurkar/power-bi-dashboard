@@ -340,23 +340,22 @@ function HomeTab({ salesData, budgetVsSalesData }) {
         </PBIPanel>
       </div>
 
-      {/* ─── ROW 2: Pie + Matrix + Budget ─── */}
-      <div className="home-row">
-
+      {/* ─── ROW 2: Pie Chart (Full Width) ─── */}
+      <div className="home-row" style={{ display: 'block' }}>
         {/* Panel 3: Pie */}
-        <PBIPanel title="Total amount by Group" className="home-panel-pie">
-          <ResponsiveContainer width="100%" height={300}>
+        <PBIPanel title="Total amount by Group" className="home-panel-full">
+          <ResponsiveContainer width="100%" height={400}>
             <PieChart>
               <Pie
                 data={pieData}
-                cx="35%"
+                cx="50%"
                 cy="50%"
-                outerRadius="65%"
+                outerRadius="70%"
                 dataKey="value"
                 label={({ name, value, percent, cx, cy, midAngle, outerRadius: oR }) => {
-                  if (percent < 0.05) return null;
+                  if (percent < 0.03) return null;
                   const RADIAN = Math.PI / 180;
-                  const radius = oR + 15;
+                  const radius = oR + 25;
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
                   return (
@@ -366,14 +365,14 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                       fill={getGroupColor(name)}
                       textAnchor={x > cx ? 'start' : 'end'}
                       dominantBaseline="central"
-                      fontSize={10}
+                      fontSize={12}
                       fontWeight={600}
                     >
                       {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
                     </text>
                   );
                 }}
-                labelLine={{ strokeWidth: 1, stroke: '#bbb' }}
+                labelLine={{ strokeWidth: 1.5, stroke: '#bbb' }}
                 startAngle={90}
                 endAngle={-270}
               >
@@ -383,15 +382,19 @@ function HomeTab({ salesData, budgetVsSalesData }) {
               </Pie>
               <Tooltip formatter={(val) => `${formatMComma(val)} (${formatFullIndian(val)})`} />
               <Legend
-                layout="vertical"
-                verticalAlign="middle"
-                align="right"
-                wrapperStyle={{ fontSize: 11, paddingLeft: 15 }}
-                formatter={(value) => <span style={{ color: '#333' }}>{value}</span>}
+                layout="horizontal"
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={{ fontSize: 12, paddingTop: 20 }}
+                formatter={(value) => <span style={{ color: '#333', fontWeight: 600 }}>{value}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
         </PBIPanel>
+      </div>
+
+      {/* ─── ROW 3: Matrix + Budget ─── */}
+      <div className="home-row">
 
         {/* Panel 4: Sales Matrix Table */}
         <PBIPanel title="Total sales by Group Rs in Millions" className="home-panel-matrix">
