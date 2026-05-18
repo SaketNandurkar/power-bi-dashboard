@@ -539,29 +539,28 @@ const CATEGORY_LABELS = {
 const FY_MONTH_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
 function buildApPivot(rows, sortOrder = 'asc') {
-  // Group by month_sort → { month_label, category → amount }
+  // Group by cal_year-cal_month → { month_label, category → amount }
   const monthMap = {};
   for (const row of rows) {
-    const key = `${row.cal_year}-${row.cal_month}`;
+    const key = `${row.cal_year}-${String(row.cal_month).padStart(2, '0')}`;
     if (!monthMap[key]) {
       monthMap[key] = {
         month_label: row.month_label,
-        month_sort: Number(row.month_sort),
-        cal_year: row.cal_year,
-        cal_month: row.cal_month,
+        cal_year: Number(row.cal_year),
+        cal_month: Number(row.cal_month),
+        sortKey: Number(row.cal_year) * 100 + Number(row.cal_month), // YYYYMM for proper calendar sorting
         amounts: {}
       };
     }
     monthMap[key].amounts[row.category] = (monthMap[key].amounts[row.category] || 0) + Number(row.amount);
   }
 
-  // Sort by fiscal-year month order (ascending or descending)
+  // Sort by CALENDAR date (year + month), not fiscal year
   const sorted = Object.values(monthMap).sort((a, b) => {
-    // Sort by month_sort which contains year and month info
     if (sortOrder === 'asc') {
-      return a.month_sort - b.month_sort;
+      return a.sortKey - b.sortKey; // 202410, 202504, 202505, 202506...
     } else {
-      return b.month_sort - a.month_sort;
+      return b.sortKey - a.sortKey; // 202605, 202604, 202603...
     }
   });
 
