@@ -130,6 +130,10 @@ export default function App() {
       case 'analytics':
         return <AnalyticsDashboard user={user} />;
       case 'chatbot':
+        // Only ADMIN can access AI Assistant
+        if (!isAdmin) {
+          return <AnalyticsDashboard user={user} />;
+        }
         return <ChatbotPanel user={user} />;
       case 'users':
         return <UserManagement currentUser={user} />;

@@ -55,10 +55,18 @@ export default function Sidebar({ activeView, onViewChange, user, isOpen, onClos
     admin: 'Administration'
   };
 
-  // Only show admin section items if user is ADMIN
-  const filteredItems = navItems.filter(item =>
-    item.section !== 'admin' || user?.role === 'ADMIN'
-  );
+  // Only show admin section items and AI Assistant if user is ADMIN
+  const filteredItems = navItems.filter(item => {
+    // Filter out admin section for non-admin users
+    if (item.section === 'admin' && user?.role !== 'ADMIN') {
+      return false;
+    }
+    // Filter out AI Assistant (chatbot) for non-admin users
+    if (item.id === 'chatbot' && user?.role !== 'ADMIN') {
+      return false;
+    }
+    return true;
+  });
 
   const groupedItems = Object.entries(sections)
     .map(([sectionId, sectionLabel]) => ({

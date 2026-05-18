@@ -590,6 +590,13 @@ function ApPivotTable({ title, data }) {
   }
 
   const { months, grandTotal } = data;
+
+  // Filter out months with no data (all amounts are 0 or empty)
+  const nonEmptyMonths = months.filter(m => {
+    const rowTotal = CATEGORY_COLS.reduce((s, c) => s + (m.amounts[c] || 0), 0);
+    return rowTotal > 0;
+  });
+
   const grandRowTotal = CATEGORY_COLS.reduce((s, c) => s + (grandTotal[c] || 0), 0);
 
   return (
@@ -610,7 +617,7 @@ function ApPivotTable({ title, data }) {
               </tr>
             </thead>
             <tbody>
-              {months.map((m, idx) => {
+              {nonEmptyMonths.map((m, idx) => {
                 const rowTotal = CATEGORY_COLS.reduce((s, c) => s + (m.amounts[c] || 0), 0);
                 return (
                   <tr key={m.month_label} className={idx % 2 === 0 ? 'bank-row-even' : 'bank-row-odd'}>
