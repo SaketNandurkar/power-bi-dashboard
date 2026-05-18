@@ -160,12 +160,65 @@ function HomeTab({ salesData, budgetVsSalesData }) {
   const monthlyRaw = salesData.sales_monthly_trend || [];
   const trendGroups = orderedGroups;
   const monthlyMap = {};
+
+  // Build initial map from available data
   for (const row of monthlyRaw) {
     const key = `${row.year}-${String(row.month).padStart(2, '0')}`;
-    const label = `${MONTH_ABBR[row.month]} ${row.year}`;
+    const yearShort = String(row.year).slice(-2); // Get last 2 digits of year
+    const label = `${MONTH_ABBR[row.month]}${yearShort}`;
     if (!monthlyMap[key]) monthlyMap[key] = { key, label, sortKey: Number(row.year) * 100 + Number(row.month) };
     monthlyMap[key][row.group_name] = (monthlyMap[key][row.group_name] || 0) + Number(row.total_amount);
   }
+
+  // Fill in missing months with zeros
+  if (monthlyRaw.length > 0) {
+    // Find min and max dates
+    const sortKeys = Object.values(monthlyMap).map(m => m.sortKey).sort((a, b) => a - b);
+    const minSortKey = sortKeys[0];
+    const maxSortKey = sortKeys[sortKeys.length - 1];
+
+    const minYear = Math.floor(minSortKey / 100);
+    const minMonth = minSortKey % 100;
+    const maxYear = Math.floor(maxSortKey / 100);
+    const maxMonth = maxSortKey % 100;
+
+    // Generate all months between min and max
+    let currentYear = minYear;
+    let currentMonth = minMonth;
+
+    while (currentYear < maxYear || (currentYear === maxYear && currentMonth <= maxMonth)) {
+      const key = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+      const sortKey = currentYear * 100 + currentMonth;
+
+      if (!monthlyMap[key]) {
+        const yearShort = String(currentYear).slice(-2); // Get last 2 digits of year
+        monthlyMap[key] = {
+          key,
+          label: `${MONTH_ABBR[currentMonth]}${yearShort}`,
+          sortKey
+        };
+        // Initialize all groups to 0 for this month
+        trendGroups.forEach(g => {
+          monthlyMap[key][g] = 0;
+        });
+      } else {
+        // Ensure all groups exist even if they have no data for this month
+        trendGroups.forEach(g => {
+          if (monthlyMap[key][g] === undefined) {
+            monthlyMap[key][g] = 0;
+          }
+        });
+      }
+
+      // Move to next month
+      currentMonth++;
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+      }
+    }
+  }
+
   const monthlyData = Object.values(monthlyMap).sort((a, b) => a.sortKey - b.sortKey);
 
   // ═══ PANEL 3: Pie ═══
@@ -265,7 +318,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                 angle={-45}
                 textAnchor="end"
                 height={55}
-                interval={Math.max(0, Math.floor(monthlyData.length / 10))}
+                interval={0}
               />
               <YAxis tickFormatter={formatAxisM} tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} />
               <Tooltip content={<PBITooltip />} />
@@ -296,14 +349,14 @@ function HomeTab({ salesData, budgetVsSalesData }) {
             <PieChart>
               <Pie
                 data={pieData}
-                cx="40%"
+                cx="35%"
                 cy="50%"
-                outerRadius="75%"
+                outerRadius="65%"
                 dataKey="value"
                 label={({ name, value, percent, cx, cy, midAngle, outerRadius: oR }) => {
                   if (percent < 0.05) return null;
                   const RADIAN = Math.PI / 180;
-                  const radius = oR + 18;
+                  const radius = oR + 15;
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
                   return (
@@ -333,7 +386,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                 layout="vertical"
                 verticalAlign="middle"
                 align="right"
-                wrapperStyle={{ fontSize: 11, paddingLeft: 10 }}
+                wrapperStyle={{ fontSize: 11, paddingLeft: 15 }}
                 formatter={(value) => <span style={{ color: '#333' }}>{value}</span>}
               />
             </PieChart>
@@ -482,19 +535,32 @@ const CATEGORY_LABELS = {
 // Fiscal year month order: Apr(4) → Mar(3)
 const FY_MONTH_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
-function buildApPivot(rows) {
+function buildApPivot(rows, sortOrder = 'asc') {
   // Group by month_sort → { month_label, category → amount }
   const monthMap = {};
   for (const row of rows) {
     const key = `${row.cal_year}-${row.cal_month}`;
     if (!monthMap[key]) {
-      monthMap[key] = { month_label: row.month_label, month_sort: Number(row.month_sort), amounts: {} };
+      monthMap[key] = {
+        month_label: row.month_label,
+        month_sort: Number(row.month_sort),
+        cal_year: row.cal_year,
+        cal_month: row.cal_month,
+        amounts: {}
+      };
     }
     monthMap[key].amounts[row.category] = (monthMap[key].amounts[row.category] || 0) + Number(row.amount);
   }
 
-  // Sort by fiscal-year month order
-  const sorted = Object.values(monthMap).sort((a, b) => a.month_sort - b.month_sort);
+  // Sort by fiscal-year month order (ascending or descending)
+  const sorted = Object.values(monthMap).sort((a, b) => {
+    // Sort by month_sort which contains year and month info
+    if (sortOrder === 'asc') {
+      return a.month_sort - b.month_sort;
+    } else {
+      return b.month_sort - a.month_sort;
+    }
+  });
 
   // Compute grand total row
   const grandTotal = {};
@@ -578,29 +644,45 @@ function ApPivotTable({ title, data }) {
 }
 
 function AccountsTab({ apData, apFy, onFyChange }) {
+  const [sortOrder, setSortOrder] = useState('asc');
+
   if (!apData) return <div className="analytics-loading">Loading accounts payable data...</div>;
 
   const todayStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const fyLabel = apFy ? `FY ${apFy}-${String(apFy + 1).slice(2)}` : 'All Years';
 
-  const overallPivot = buildApPivot(apData.overall || []);
-  const msmePivot = buildApPivot(apData.msme || []);
+  const overallPivot = buildApPivot(apData.overall || [], sortOrder);
+  const msmePivot = buildApPivot(apData.msme || [], sortOrder);
 
   return (
     <div>
-      {/* FY Filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
-        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-gray-600)' }}>Company Fiscal Year:</label>
-        <select
-          className="analytics-filter-select"
-          value={apFy || ''}
-          onChange={e => onFyChange(e.target.value ? Number(e.target.value) : null)}
-        >
-          <option value="">All Years</option>
-          {(apData.fiscal_years || []).map(fy => (
-            <option key={fy} value={fy}>FY {fy}-{String(fy + 1).slice(2)}</option>
-          ))}
-        </select>
+      {/* FY Filter and Sort Order */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-lg)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-gray-600)' }}>Company Fiscal Year:</label>
+          <select
+            className="analytics-filter-select"
+            value={apFy || ''}
+            onChange={e => onFyChange(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">All Years</option>
+            {(apData.fiscal_years || []).map(fy => (
+              <option key={fy} value={fy}>FY {fy}-{String(fy + 1).slice(2)}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-gray-600)' }}>Month Sort Order:</label>
+          <select
+            className="analytics-filter-select"
+            value={sortOrder}
+            onChange={e => setSortOrder(e.target.value)}
+          >
+            <option value="asc">Ascending (Oldest to Newest)</option>
+            <option value="desc">Descending (Newest to Oldest)</option>
+          </select>
+        </div>
       </div>
 
       <ApPivotTable
@@ -755,14 +837,19 @@ function BankTab({ bankData }) {
   if (!bankData) return <div className="analytics-loading">Loading bank data...</div>;
 
   const { pivot, detail, total_balance } = bankData;
-  if (!detail?.length) return <div className="analytics-empty">No bank data available</div>;
+
+  // Filter out zero balance entries (additional safety check)
+  const filteredPivot = (pivot || []).filter(r => Number(r.balance) !== 0);
+  const filteredDetail = (detail || []).filter(r => Number(r.balance) !== 0);
+
+  if (!filteredDetail.length) return <div className="analytics-empty">No bank data available</div>;
 
   // Build pivot: rows = parent_bank, columns = currencies
   const currencies = CURRENCY_ORDER.filter(c =>
-    pivot.some(r => r.currency === c)
+    filteredPivot.some(r => r.currency === c)
   );
   const bankMap = {};
-  for (const row of pivot) {
+  for (const row of filteredPivot) {
     if (!bankMap[row.parent_bank]) bankMap[row.parent_bank] = {};
     bankMap[row.parent_bank][row.currency] = Number(row.balance);
   }
@@ -819,7 +906,7 @@ function BankTab({ bankData }) {
                 </tr>
               </thead>
               <tbody>
-                {detail.map((row, idx) => (
+                {filteredDetail.map((row, idx) => (
                   <tr key={idx} className={idx % 2 === 0 ? 'bank-row-even' : 'bank-row-odd'}>
                     <td className="bank-detail-text">{row.long_text}</td>
                     <td className="bank-detail-val">{formatFullIndian(row.balance)}</td>

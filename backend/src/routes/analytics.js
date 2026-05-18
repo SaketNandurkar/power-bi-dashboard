@@ -389,25 +389,29 @@ router.get('/sales-yoy', async (req, res, next) => {
 router.get('/bank-summary', async (req, res, next) => {
   try {
     const [pivotRes, detailRes, totalRes] = await Promise.all([
-      // Pivot: parent_bank × currency → sum(balance)
+      // Pivot: parent_bank × currency → sum(balance) (excluding zero balances)
       pool.query(`
         SELECT ${BANK_PARENT_CASE} AS parent_bank,
                ${BANK_CURRENCY_CASE} AS currency,
                SUM(balance) AS balance
         FROM curated.bank_report
+        WHERE balance != 0
         GROUP BY parent_bank, currency
+        HAVING SUM(balance) != 0
         ORDER BY parent_bank, currency
       `),
-      // Detail: every account row sorted by balance ascending
+      // Detail: every account row sorted by balance ascending (excluding zero balances)
       pool.query(`
         SELECT long_text, balance
         FROM curated.bank_report
+        WHERE balance != 0
         ORDER BY balance ASC
       `),
-      // Grand total
+      // Grand total (excluding zero balances)
       pool.query(`
         SELECT SUM(balance) AS total_balance
         FROM curated.bank_report
+        WHERE balance != 0
       `)
     ]);
 
