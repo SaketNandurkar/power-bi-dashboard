@@ -133,6 +133,54 @@ function BarLabel({ x, y, width, value }) {
   );
 }
 
+// Custom Pie Label with smart positioning to avoid overlap
+function renderPieLabel({ name, value, percent, cx, cy, midAngle, index, outerRadius: oR }) {
+  const RADIAN = Math.PI / 180;
+
+  // Calculate base radius - larger for smaller slices to spread them out
+  let radiusOffset;
+  if (percent < 0.02) {
+    // Very small slices - push way out
+    radiusOffset = 100;
+  } else if (percent < 0.05) {
+    // Small slices - push out more
+    radiusOffset = 80;
+  } else if (percent < 0.10) {
+    // Medium-small slices
+    radiusOffset = 60;
+  } else {
+    // Large slices - normal distance
+    radiusOffset = 50;
+  }
+
+  const radius = oR + radiusOffset;
+  let x = cx + radius * Math.cos(-midAngle * RADIAN);
+  let y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  // For very small slices at similar angles (top area), add vertical offset
+  if (percent < 0.03 && midAngle >= 45 && midAngle <= 135) {
+    // Top area small slices - stack them vertically
+    y = y - (index * 20); // Stack upward
+  }
+
+  // Adjust text anchor based on position
+  const textAnchor = x > cx ? 'start' : 'end';
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#333"
+      textAnchor={textAnchor}
+      dominantBaseline="central"
+      fontSize={14}
+      fontWeight="600"
+    >
+      {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
+    </text>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // HOME TAB — 6 panels matching Power BI exactly
 // ═══════════════════════════════════════════════════════════
@@ -346,35 +394,15 @@ function HomeTab({ salesData, budgetVsSalesData }) {
       <div className="home-row" style={{ display: 'block' }}>
         {/* Panel 3: Pie */}
         <PBIPanel title="Total amount by Group" className="home-panel-full">
-          <ResponsiveContainer width="100%" height={550}>
+          <ResponsiveContainer width="100%" height={600}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                outerRadius="65%"
+                outerRadius="60%"
                 dataKey="value"
-                label={({ name, value, percent, cx, cy, midAngle, outerRadius: oR }) => {
-                  // Show all labels, even for small slices
-                  const RADIAN = Math.PI / 180;
-                  // Increase radius offset for better spacing
-                  const radius = oR + 35;
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                  return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill={getGroupColor(name)}
-                      textAnchor={x > cx ? 'start' : 'end'}
-                      dominantBaseline="central"
-                      fontSize={14}
-                      fontWeight={600}
-                    >
-                      {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
-                    </text>
-                  );
-                }}
+                label={renderPieLabel}
                 labelLine={{ strokeWidth: 2, stroke: '#888' }}
                 startAngle={90}
                 endAngle={-270}
