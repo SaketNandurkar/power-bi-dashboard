@@ -133,37 +133,43 @@ function BarLabel({ x, y, width, value }) {
   );
 }
 
-// Custom Pie Label with smart positioning to avoid overlap
+// Custom Pie Label with collision-free positioning
 function renderPieLabel({ name, value, percent, cx, cy, midAngle, index, outerRadius: oR }) {
   const RADIAN = Math.PI / 180;
+  const percentValue = percent * 100;
 
-  // Calculate base radius - larger for smaller slices to spread them out
-  let radiusOffset;
-  if (percent < 0.02) {
-    // Very small slices - push way out
-    radiusOffset = 100;
-  } else if (percent < 0.05) {
-    // Small slices - push out more
-    radiusOffset = 80;
-  } else if (percent < 0.10) {
-    // Medium-small slices
-    radiusOffset = 60;
-  } else {
-    // Large slices - normal distance
-    radiusOffset = 50;
+  // Calculate radius offset based on slice size
+  let radiusOffset = 55;
+  if (percent < 0.10) {
+    radiusOffset = 85; // Push small slices further out
   }
 
+  // Calculate base position
   const radius = oR + radiusOffset;
   let x = cx + radius * Math.cos(-midAngle * RADIAN);
   let y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-  // For very small slices at similar angles (top area), add vertical offset
-  if (percent < 0.03 && midAngle >= 45 && midAngle <= 135) {
-    // Top area small slices - stack them vertically
-    y = y - (index * 20); // Stack upward
+  // Special handling for small slices in top area to prevent overlap
+  // Top area is roughly 0-180 degrees
+  if (percent < 0.10 && midAngle >= 0 && midAngle <= 180) {
+    // Stack small slices vertically based on their percentage
+    // Smaller slices go higher
+    let verticalOffset = 0;
+
+    if (percentValue < 2) {
+      // Very small (< 2%) - push highest
+      verticalOffset = -80;
+    } else if (percentValue < 5) {
+      // Small (2-5%) - push up moderately
+      verticalOffset = -45;
+    } else if (percentValue < 10) {
+      // Medium-small (5-10%) - push up slightly
+      verticalOffset = -10;
+    }
+
+    y = y + verticalOffset;
   }
 
-  // Adjust text anchor based on position
   const textAnchor = x > cx ? 'start' : 'end';
 
   return (
