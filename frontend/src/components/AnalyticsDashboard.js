@@ -133,58 +133,70 @@ function BarLabel({ x, y, width, value }) {
   );
 }
 
-// Custom Pie Label with collision-free positioning
+// Custom Pie Label - small slices positioned on right side to prevent overlap
 function renderPieLabel({ name, value, percent, cx, cy, midAngle, index, outerRadius: oR }) {
   const RADIAN = Math.PI / 180;
   const percentValue = percent * 100;
 
-  // Calculate radius offset based on slice size
-  let radiusOffset = 55;
+  let x, y;
+
+  // For small slices (< 10%), position ALL labels on the RIGHT side at staggered heights
   if (percent < 0.10) {
-    radiusOffset = 85; // Push small slices further out
-  }
+    // Position on the right side of the pie
+    const rightSideX = cx + oR + 120; // Fixed position on the right
 
-  // Calculate base position
-  const radius = oR + radiusOffset;
-  let x = cx + radius * Math.cos(-midAngle * RADIAN);
-  let y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-  // Special handling for small slices in top area to prevent overlap
-  // Top area is roughly 0-180 degrees
-  if (percent < 0.10 && midAngle >= 0 && midAngle <= 180) {
-    // Stack small slices vertically based on their percentage
-    // Smaller slices go higher
-    let verticalOffset = 0;
-
+    // Stack vertically based on size (smallest at top)
+    let yPosition;
     if (percentValue < 2) {
-      // Very small (< 2%) - push highest
-      verticalOffset = -80;
+      // Very small slices at the top
+      yPosition = cy - 100;
     } else if (percentValue < 5) {
-      // Small (2-5%) - push up moderately
-      verticalOffset = -45;
+      // Small slices in the middle
+      yPosition = cy - 50;
     } else if (percentValue < 10) {
-      // Medium-small (5-10%) - push up slightly
-      verticalOffset = -10;
+      // Medium-small slices lower
+      yPosition = cy;
     }
 
-    y = y + verticalOffset;
+    x = rightSideX;
+    y = yPosition;
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#333"
+        textAnchor="start"
+        dominantBaseline="central"
+        fontSize={14}
+        fontWeight="600"
+      >
+        {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
+      </text>
+    );
+  } else {
+    // Large slices use normal angular positioning
+    const radiusOffset = 55;
+    const radius = oR + radiusOffset;
+    x = cx + radius * Math.cos(-midAngle * RADIAN);
+    y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    const textAnchor = x > cx ? 'start' : 'end';
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#333"
+        textAnchor={textAnchor}
+        dominantBaseline="central"
+        fontSize={14}
+        fontWeight="600"
+      >
+        {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
+      </text>
+    );
   }
-
-  const textAnchor = x > cx ? 'start' : 'end';
-
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="#333"
-      textAnchor={textAnchor}
-      dominantBaseline="central"
-      fontSize={14}
-      fontWeight="600"
-    >
-      {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
-    </text>
-  );
 }
 
 // ═══════════════════════════════════════════════════════════
