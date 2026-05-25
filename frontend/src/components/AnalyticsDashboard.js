@@ -230,6 +230,43 @@ function HomeTab({ salesData, budgetVsSalesData }) {
   const pieTotal = pieData.reduce((sum, d) => sum + d.value, 0);
   const smallSlices = pieData.filter(d => (d.value / pieTotal) < 0.10);
 
+  // Custom label line renderer to connect slices to right-side labels
+  const renderCustomLabelLine = (props) => {
+    const { cx, cy, midAngle, outerRadius, percent, name } = props;
+    const RADIAN = Math.PI / 180;
+
+    // For small slices, draw line from slice edge to right-side label
+    if (percent < 0.10) {
+      const smallSliceIndex = smallSlices.findIndex(s => s.name === name);
+
+      // Start point: edge of the slice
+      const startX = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+      const startY = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+
+      // Mid point: slightly extended
+      const midX = cx + (outerRadius + 20) * Math.cos(-midAngle * RADIAN);
+      const midY = cy + (outerRadius + 20) * Math.sin(-midAngle * RADIAN);
+
+      // End point: right-side label position
+      const endX = cx + outerRadius + 130;
+      const startYLabel = cy - 120;
+      const spacing = 50;
+      const endY = startYLabel + (smallSliceIndex * spacing);
+
+      return (
+        <polyline
+          points={`${startX},${startY} ${midX},${midY} ${endX},${endY}`}
+          stroke="#888"
+          strokeWidth={2}
+          fill="none"
+        />
+      );
+    }
+
+    // For large slices, use default behavior (return null to use default)
+    return null;
+  };
+
   // Create label renderer with context about small slices
   const renderPieLabelWithContext = (props) => {
     const { name, value, percent, cx, cy, midAngle, index, outerRadius: oR } = props;
@@ -415,7 +452,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                 outerRadius="60%"
                 dataKey="value"
                 label={renderPieLabelWithContext}
-                labelLine={{ strokeWidth: 2, stroke: '#888' }}
+                labelLine={renderCustomLabelLine}
                 startAngle={90}
                 endAngle={-270}
               >
