@@ -1141,6 +1141,14 @@ body {
   min-width: 0;
 }
 
+/* Full-width panels for better spacing */
+.home-panel-bar-full,
+.home-panel-trend-full {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
 /* Row 2: Pie (25%) + Matrix (35%) + Budget (40%) */
 .home-panel-pie {
   flex: 5;

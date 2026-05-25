@@ -251,13 +251,12 @@ function HomeTab({ salesData, budgetVsSalesData }) {
 
   return (
     <div className="home-grid">
-      {/* ─── ROW 1: Bar + Trend ─── */}
+      {/* ─── ROW 1: Bar Chart (Full Width) ─── */}
       <div className="home-row">
-
         {/* Panel 1: Grouped Bar */}
         <PBIPanel
           title="Total sales amount by Group and Fiscal Year"
-          className="home-panel-bar"
+          className="home-panel-bar-full"
           rightContent={
             <div className="pbi-kpi-badge">
               <span className="pbi-kpi-number">{formatMComma(grandTotal)}</span>
@@ -274,25 +273,28 @@ function HomeTab({ salesData, budgetVsSalesData }) {
               </span>
             ))}
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={barData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }} barCategoryGap="20%">
+          <ResponsiveContainer width="100%" height={450}>
+            <BarChart data={barData} margin={{ top: 30, right: 40, left: 20, bottom: 20 }} barCategoryGap="35%">
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
-              <XAxis dataKey="group" tick={{ fontSize: 11, fill: '#555' }} />
-              <YAxis tickFormatter={formatAxisM} tick={{ fontSize: 10, fill: '#888' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="group" tick={{ fontSize: 12, fill: '#555' }} />
+              <YAxis tickFormatter={formatAxisM} tick={{ fontSize: 11, fill: '#888' }} axisLine={false} tickLine={false} />
               <Tooltip content={<PBITooltip />} />
               {years.map((y, i) => (
-                <Bar key={y} dataKey={`FY${y}`} name={String(y)} fill={FY_COLORS[i % FY_COLORS.length]} barSize={years.length > 3 ? 18 : 28}>
+                <Bar key={y} dataKey={`FY${y}`} name={String(y)} fill={FY_COLORS[i % FY_COLORS.length]} barSize={years.length > 3 ? 28 : 40}>
                   <LabelList dataKey={`FY${y}`} content={<BarLabel />} />
                 </Bar>
               ))}
             </BarChart>
           </ResponsiveContainer>
         </PBIPanel>
+      </div>
 
+      {/* ─── ROW 2: Monthly Trend (Full Width) ─── */}
+      <div className="home-row">
         {/* Panel 2: Monthly Trend */}
         <PBIPanel
           title="Total Sales amount by Year and Group"
-          className="home-panel-trend"
+          className="home-panel-trend-full"
           rightContent={
             <div className="pbi-kpi-badge">
               <span className="pbi-kpi-number">{formatMComma(grandTotal)}</span>
