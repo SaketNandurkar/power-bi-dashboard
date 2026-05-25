@@ -230,7 +230,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
   const pieTotal = pieData.reduce((sum, d) => sum + d.value, 0);
   const verySmallSlices = pieData.filter(d => (d.value / pieTotal) < 0.03);
 
-  // Custom label line renderer to connect slices to right-side labels
+  // Custom label line renderer to connect slices to labels
   const renderCustomLabelLine = (props) => {
     const { cx, cy, midAngle, outerRadius, percent, name } = props;
     const RADIAN = Math.PI / 180;
@@ -261,10 +261,29 @@ function HomeTab({ salesData, budgetVsSalesData }) {
           fill="none"
         />
       );
-    }
+    } else {
+      // For all other slices, draw standard line from slice to label
+      const radiusOffset = 55;
 
-    // For all other slices, use default behavior (return null to use default)
-    return null;
+      // Start point: edge of the slice
+      const startX = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+      const startY = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+
+      // End point: where the label is positioned
+      const endX = cx + (outerRadius + radiusOffset) * Math.cos(-midAngle * RADIAN);
+      const endY = cy + (outerRadius + radiusOffset) * Math.sin(-midAngle * RADIAN);
+
+      return (
+        <line
+          x1={startX}
+          y1={startY}
+          x2={endX}
+          y2={endY}
+          stroke="#888"
+          strokeWidth={2}
+        />
+      );
+    }
   };
 
   // Create label renderer with context about small slices
