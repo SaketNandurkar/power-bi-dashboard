@@ -342,22 +342,23 @@ function HomeTab({ salesData, budgetVsSalesData }) {
         </PBIPanel>
       </div>
 
-      {/* ─── ROW 2: Pie Chart (Full Width) ─── */}
+      {/* ─── ROW 3: Pie Chart (Full Width) ─── */}
       <div className="home-row" style={{ display: 'block' }}>
         {/* Panel 3: Pie */}
         <PBIPanel title="Total amount by Group" className="home-panel-full">
-          <ResponsiveContainer width="100%" height={400}>
+          <ResponsiveContainer width="100%" height={550}>
             <PieChart>
               <Pie
                 data={pieData}
                 cx="50%"
                 cy="50%"
-                outerRadius="70%"
+                outerRadius="65%"
                 dataKey="value"
                 label={({ name, value, percent, cx, cy, midAngle, outerRadius: oR }) => {
-                  if (percent < 0.03) return null;
+                  // Show all labels, even for small slices
                   const RADIAN = Math.PI / 180;
-                  const radius = oR + 25;
+                  // Increase radius offset for better spacing
+                  const radius = oR + 35;
                   const x = cx + radius * Math.cos(-midAngle * RADIAN);
                   const y = cy + radius * Math.sin(-midAngle * RADIAN);
                   return (
@@ -367,14 +368,14 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                       fill={getGroupColor(name)}
                       textAnchor={x > cx ? 'start' : 'end'}
                       dominantBaseline="central"
-                      fontSize={12}
+                      fontSize={14}
                       fontWeight={600}
                     >
                       {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
                     </text>
                   );
                 }}
-                labelLine={{ strokeWidth: 1.5, stroke: '#bbb' }}
+                labelLine={{ strokeWidth: 2, stroke: '#888' }}
                 startAngle={90}
                 endAngle={-270}
               >
@@ -387,7 +388,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                 layout="horizontal"
                 verticalAlign="bottom"
                 align="center"
-                wrapperStyle={{ fontSize: 12, paddingTop: 20 }}
+                wrapperStyle={{ fontSize: 13, paddingTop: 25 }}
                 formatter={(value) => <span style={{ color: '#333', fontWeight: 600 }}>{value}</span>}
               />
             </PieChart>
