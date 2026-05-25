@@ -133,72 +133,6 @@ function BarLabel({ x, y, width, value }) {
   );
 }
 
-// Custom Pie Label - small slices positioned on right side to prevent overlap
-function renderPieLabel({ name, value, percent, cx, cy, midAngle, index, outerRadius: oR }) {
-  const RADIAN = Math.PI / 180;
-  const percentValue = percent * 100;
-
-  let x, y;
-
-  // For small slices (< 10%), position ALL labels on the RIGHT side at staggered heights
-  if (percent < 0.10) {
-    // Position on the right side of the pie
-    const rightSideX = cx + oR + 120; // Fixed position on the right
-
-    // Stack vertically based on size (smallest at top)
-    let yPosition;
-    if (percentValue < 2) {
-      // Very small slices at the top
-      yPosition = cy - 100;
-    } else if (percentValue < 5) {
-      // Small slices in the middle
-      yPosition = cy - 50;
-    } else if (percentValue < 10) {
-      // Medium-small slices lower
-      yPosition = cy;
-    }
-
-    x = rightSideX;
-    y = yPosition;
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="#333"
-        textAnchor="start"
-        dominantBaseline="central"
-        fontSize={14}
-        fontWeight="600"
-      >
-        {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
-      </text>
-    );
-  } else {
-    // Large slices use normal angular positioning
-    const radiusOffset = 55;
-    const radius = oR + radiusOffset;
-    x = cx + radius * Math.cos(-midAngle * RADIAN);
-    y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    const textAnchor = x > cx ? 'start' : 'end';
-
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="#333"
-        textAnchor={textAnchor}
-        dominantBaseline="central"
-        fontSize={14}
-        fontWeight="600"
-      >
-        {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
-      </text>
-    );
-  }
-}
-
 // ═══════════════════════════════════════════════════════════
 // HOME TAB — 6 panels matching Power BI exactly
 // ═══════════════════════════════════════════════════════════
@@ -291,6 +225,66 @@ function HomeTab({ salesData, budgetVsSalesData }) {
   const pieData = salesData.sales_by_group
     .map(r => ({ name: r.group_name, value: Number(r.total_amount) }))
     .sort((a, b) => b.value - a.value);
+
+  // Calculate total for percentages and identify small slices
+  const pieTotal = pieData.reduce((sum, d) => sum + d.value, 0);
+  const smallSlices = pieData.filter(d => (d.value / pieTotal) < 0.10);
+
+  // Create label renderer with context about small slices
+  const renderPieLabelWithContext = (props) => {
+    const { name, value, percent, cx, cy, midAngle, index, outerRadius: oR } = props;
+    const RADIAN = Math.PI / 180;
+
+    // For small slices (< 10%), position on RIGHT side at staggered heights
+    if (percent < 0.10) {
+      // Find this slice's position among small slices
+      const smallSliceIndex = smallSlices.findIndex(s => s.name === name);
+
+      // Fixed X position on the right side
+      const rightSideX = cx + oR + 130;
+
+      // Calculate Y position - evenly space the small slices vertically
+      // Start from top and work down
+      const startY = cy - 120; // Start higher up
+      const spacing = 50; // Space between each label
+      const yPosition = startY + (smallSliceIndex * spacing);
+
+      return (
+        <text
+          x={rightSideX}
+          y={yPosition}
+          fill="#333"
+          textAnchor="start"
+          dominantBaseline="central"
+          fontSize={14}
+          fontWeight="600"
+        >
+          {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
+        </text>
+      );
+    } else {
+      // Large slices use normal angular positioning
+      const radiusOffset = 55;
+      const radius = oR + radiusOffset;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+      const textAnchor = x > cx ? 'start' : 'end';
+
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="#333"
+          textAnchor={textAnchor}
+          dominantBaseline="central"
+          fontSize={14}
+          fontWeight="600"
+        >
+          {`${formatM(value)} (${(percent * 100).toFixed(1)}%)`}
+        </text>
+      );
+    }
+  };
 
   // ═══ PANEL 4: Sales Matrix Table (Group × Year in Millions) ═══
   const matrixGroups = {};
@@ -420,7 +414,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
                 cy="50%"
                 outerRadius="60%"
                 dataKey="value"
-                label={renderPieLabel}
+                label={renderPieLabelWithContext}
                 labelLine={{ strokeWidth: 2, stroke: '#888' }}
                 startAngle={90}
                 endAngle={-270}
