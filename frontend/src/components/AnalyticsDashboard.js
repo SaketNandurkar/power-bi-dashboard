@@ -127,7 +127,7 @@ function PBIPanel({ title, className, children, rightContent }) {
 function BarLabel({ x, y, width, value }) {
   if (!value || value === 0) return null;
   return (
-    <text x={x + width / 2} y={y - 4} fill="#333" fontSize={9} textAnchor="middle">
+    <text x={x + width / 2} y={y - 6} fill="#333" fontSize={13} fontWeight="500" textAnchor="middle">
       {formatM(value)}
     </text>
   );
@@ -274,13 +274,13 @@ function HomeTab({ salesData, budgetVsSalesData }) {
             ))}
           </div>
           <ResponsiveContainer width="100%" height={450}>
-            <BarChart data={barData} margin={{ top: 30, right: 40, left: 20, bottom: 20 }} barCategoryGap="35%">
+            <BarChart data={barData} margin={{ top: 30, right: 40, left: 20, bottom: 20 }} barCategoryGap="30%">
               <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" vertical={false} />
-              <XAxis dataKey="group" tick={{ fontSize: 12, fill: '#555' }} />
-              <YAxis tickFormatter={formatAxisM} tick={{ fontSize: 11, fill: '#888' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="group" tick={{ fontSize: 14, fill: '#555', fontWeight: '500' }} />
+              <YAxis tickFormatter={formatAxisM} tick={{ fontSize: 13, fill: '#888' }} axisLine={false} tickLine={false} />
               <Tooltip content={<PBITooltip />} />
               {years.map((y, i) => (
-                <Bar key={y} dataKey={`FY${y}`} name={String(y)} fill={FY_COLORS[i % FY_COLORS.length]} barSize={years.length > 3 ? 28 : 40}>
+                <Bar key={y} dataKey={`FY${y}`} name={String(y)} fill={FY_COLORS[i % FY_COLORS.length]} barSize={years.length > 3 ? 45 : 60}>
                   <LabelList dataKey={`FY${y}`} content={<BarLabel />} />
                 </Bar>
               ))}
