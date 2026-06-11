@@ -21,6 +21,9 @@ const { seedAdmin } = require('./utils/seedAdmin');
 
 const app = express();
 
+// Trust proxy (required for Cloudflare Tunnel and rate limiting)
+app.set('trust proxy', true);
+
 // Security headers
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
