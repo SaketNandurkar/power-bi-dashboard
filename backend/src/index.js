@@ -76,6 +76,43 @@ app.use('/api/sap', authenticate, authorize('ADMIN'), sapRouter);
 app.use('/api/export', authenticate, authorize('ADMIN'), exportRouter);
 app.use('/api/users', authenticate, authorize('ADMIN'), usersRouter);
 
+// =================================================================
+// SECURITY: Block access to sensitive files and directories
+// =================================================================
+app.use((req, res, next) => {
+  const blockedPaths = [
+    '/node_modules',
+    '/node',
+    '/package.json',
+    '/package-lock.json',
+    '/.git',
+    '/.env',
+    '/.env.example',
+    '/docker-compose',
+    '/Dockerfile',
+    '/backend',
+    '/database',
+    '/nginx',
+    '/scripts'
+  ];
+
+  // Check if request path starts with or equals any blocked path
+  const isBlocked = blockedPaths.some(blockedPath =>
+    req.path.startsWith(blockedPath) || req.path === blockedPath
+  );
+
+  if (isBlocked) {
+    logger.warn('Blocked access to sensitive path', {
+      requestId: req.requestId,
+      path: req.path,
+      ip: req.ip
+    });
+    return res.status(404).send('Not Found');
+  }
+
+  next();
+});
+
 // Serve frontend static files (production: backend serves the React build)
 const frontendBuildPath = path.join(__dirname, '..', '..', 'frontend', 'build');
 app.use(express.static(frontendBuildPath));
