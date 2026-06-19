@@ -7,6 +7,7 @@ const readLimiter = rateLimit({
   max: 10000,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable strict validation for Cloudflare Tunnel compatibility
   message: {
     status: 'error',
     message: 'Too many requests. Please try again later.'
@@ -19,6 +20,7 @@ const writeLimiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable strict validation for Cloudflare Tunnel compatibility
   message: {
     status: 'error',
     message: 'Too many requests. Please try again later.'
@@ -30,6 +32,7 @@ const uploadLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable strict validation for Cloudflare Tunnel compatibility
   message: {
     status: 'error',
     message: 'Upload rate limit exceeded. Maximum 10 uploads per minute.'
