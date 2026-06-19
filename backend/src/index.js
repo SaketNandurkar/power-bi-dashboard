@@ -22,7 +22,8 @@ const { seedAdmin } = require('./utils/seedAdmin');
 const app = express();
 
 // Trust proxy (required for Cloudflare Tunnel and rate limiting)
-app.set('trust proxy', true);
+// Trust first proxy only (Cloudflare) to avoid rate limiter security warning
+app.set('trust proxy', 1);
 
 // Security headers
 app.use(helmet({
