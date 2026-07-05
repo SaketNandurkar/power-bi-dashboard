@@ -5,6 +5,7 @@ import {
   ChartIcon,
   ActivityIcon,
   UsersIcon,
+  SettingsIcon,
   XIcon
 } from './Icons';
 
@@ -44,6 +45,12 @@ export default function Sidebar({ activeView, onViewChange, user, isOpen, onClos
       id: 'users',
       label: 'User Management',
       icon: UsersIcon,
+      section: 'admin'
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: SettingsIcon,
       section: 'admin'
     }
   ];

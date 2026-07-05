@@ -6,6 +6,7 @@ import StatusPanel from './components/StatusPanel';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import UserManagement from './components/UserManagement';
 import ChatbotPanel from './components/ChatbotPanel';
+import Settings from './components/Settings';
 import LoginPage from './components/LoginPage';
 import Notification from './components/Notification';
 import { CalendarIcon, LogoutIcon, MenuIcon } from './components/Icons';
@@ -137,6 +138,8 @@ export default function App() {
         return <ChatbotPanel user={user} />;
       case 'users':
         return <UserManagement currentUser={user} />;
+      case 'settings':
+        return <Settings />;
       default:
         return <Dashboard reports={reports} sapStatus={sapStatus} />;
     }
@@ -152,6 +155,7 @@ export default function App() {
       case 'analytics': return 'Analytics Dashboard';
       case 'chatbot': return 'AI Assistant';
       case 'users': return 'User Management';
+      case 'settings': return 'Settings';
       default: return 'Dashboard Overview';
     }
   };

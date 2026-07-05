@@ -15,6 +15,7 @@ const analyticsRouter = require('./routes/analytics');
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const chatbotRouter = require('./routes/chatbot');
+const settingsRouter = require('./routes/settings');
 const { authenticate, authorize } = require('./middleware/authMiddleware');
 const { startScheduler } = require('./services/sapScheduler');
 const { seedAdmin } = require('./utils/seedAdmin');
@@ -79,6 +80,7 @@ app.use('/api/chatbot', authenticate, chatbotRouter);                   // AI ch
 app.use('/api/sap', authenticate, authorize('ADMIN'), sapRouter);
 app.use('/api/export', authenticate, authorize('ADMIN'), exportRouter);
 app.use('/api/users', authenticate, authorize('ADMIN'), usersRouter);
+app.use('/api/settings', authenticate, authorize('ADMIN'), settingsRouter);
 
 // =================================================================
 // SECURITY: Block access to sensitive files and directories

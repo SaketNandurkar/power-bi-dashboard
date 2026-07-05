@@ -182,3 +182,22 @@ export async function fetchAccountsPayableSummary(fy) {
   if (!response.ok) throw new Error(data.message || 'Failed to fetch accounts payable data');
   return data;
 }
+
+// ── Settings API (ADMIN only) ──
+
+export async function fetchSapSettings() {
+  const response = await authFetch(`${API_URL}/api/settings/sap`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to fetch SAP settings');
+  return data;
+}
+
+export async function updateSapSettings(settings) {
+  const response = await authFetch(`${API_URL}/api/settings/sap`, {
+    method: 'PUT',
+    body: JSON.stringify(settings)
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || 'Failed to update SAP settings');
+  return data;
+}

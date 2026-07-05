@@ -5,6 +5,7 @@ const path = require('path');
 const { XMLParser } = require('fast-xml-parser');
 const config = require('../config');
 const logger = require('../utils/logger');
+const { getSapSettings } = require('./settingsService');
 
 // Mock file mapping: OData entity set name → local XML file
 const MOCK_FILES = {
@@ -30,7 +31,9 @@ const httpsAgent = new https.Agent({ rejectUnauthorized: false });
  * @returns {Promise<Object[]>} Array of parsed entry objects with namespace prefixes stripped
  */
 async function fetchEntitySet(entitySetName) {
-  const isMock = config.sapMockMode;
+  // Get SAP settings from database (falls back to env vars)
+  const sapSettings = await getSapSettings();
+  const isMock = sapSettings.mockMode;
 
   logger.info('Fetching entity set', { entitySetName, mock: isMock });
 
@@ -49,13 +52,13 @@ async function fetchEntitySet(entitySetName) {
     logger.info('Reading mock XML file', { filePath });
     xmlText = fs.readFileSync(filePath, 'utf-8');
   } else {
-    if (!config.sapUsername || !config.sapPassword) {
+    if (!sapSettings.username || !sapSettings.password) {
       throw new Error('SAP credentials not configured (SAP_USERNAME / SAP_PASSWORD)');
     }
 
     // Fetch ALL pages (handle OData pagination)
     let allXmlPages = [];
-    let nextUrl = `${config.sapOdataBaseUrl}/${entitySetName}`;
+    let nextUrl = `${sapSettings.baseUrl}/${entitySetName}`;
     let pageNum = 1;
 
     while (nextUrl) {
@@ -64,8 +67,8 @@ async function fetchEntitySet(entitySetName) {
       const response = await axios.get(nextUrl, {
         headers: { 'Accept': 'application/atom+xml' },
         auth: {
-          username: config.sapUsername,
-          password: config.sapPassword
+          username: sapSettings.username,
+          password: sapSettings.password
         },
         httpsAgent,
         timeout: config.sapRequestTimeout,
