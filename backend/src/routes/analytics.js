@@ -90,7 +90,7 @@ function buildSalesFilters(query) {
   let idx = 1;
 
   if (query.year) {
-    conditions.push(`sg.fiscal_year = $${idx++}`);
+    conditions.push(`EXTRACT(YEAR FROM sg.invoice_date)::int = $${idx++}`);
     params.push(Number(query.year));
   }
   if (query.group) {
@@ -140,14 +140,14 @@ router.get('/sales-summary', async (req, res, next) => {
   try {
     const { where, params } = buildSalesFilters(req.query);
 
-    // Sales by group & fiscal year (grouped bar)
+    // Sales by group & calendar year (grouped bar)
     const salesByGroupYear = await pool.query(`
       WITH ${SALES_GROUP_CTE}
-      SELECT sg.group_name, sg.fiscal_year, SUM(sg.total) AS total_amount
+      SELECT sg.group_name, EXTRACT(YEAR FROM sg.invoice_date)::int AS cal_year, SUM(sg.total) AS total_amount
       FROM sales_grouped sg
       ${where}
-      GROUP BY sg.group_name, sg.fiscal_year
-      ORDER BY sg.group_name, sg.fiscal_year
+      GROUP BY sg.group_name, EXTRACT(YEAR FROM sg.invoice_date)
+      ORDER BY sg.group_name, cal_year
     `, params);
 
     // Total by group (pie chart)
@@ -270,7 +270,7 @@ router.get('/budget-vs-sales', async (req, res, next) => {
     const sCond = [];
     const sParams = [];
     let si = 1;
-    if (yearFilter) { sCond.push(`sg.fiscal_year = $${si++}`); sParams.push(Number(yearFilter)); }
+    if (yearFilter) { sCond.push(`EXTRACT(YEAR FROM sg.invoice_date)::int = $${si++}`); sParams.push(Number(yearFilter)); }
     if (groupFilter) { sCond.push(`sg.group_name = $${si++}`); sParams.push(groupFilter); }
     const sWhere = sCond.length ? 'WHERE ' + sCond.join(' AND ') : '';
 
@@ -542,7 +542,7 @@ router.get('/accounts-payable-summary', async (req, res, next) => {
 router.get('/filters', async (req, res, next) => {
   try {
     const [yearsRes, groupsRes, budgetGroupsRes] = await Promise.all([
-      pool.query('SELECT DISTINCT fiscal_year FROM curated.sales_register ORDER BY fiscal_year'),
+      pool.query('SELECT DISTINCT EXTRACT(YEAR FROM invoice_date)::int AS cal_year FROM curated.sales_register WHERE invoice_date IS NOT NULL ORDER BY cal_year'),
       pool.query(`
         WITH ${SALES_GROUP_CTE}
         SELECT DISTINCT sg.group_name
@@ -557,7 +557,7 @@ router.get('/filters', async (req, res, next) => {
     ]);
 
     res.json({
-      years: yearsRes.rows.map(r => r.fiscal_year),
+      years: yearsRes.rows.map(r => r.cal_year),
       sales_groups: groupsRes.rows.map(r => r.group_name),
       budget_groups: budgetGroupsRes.rows.map(r => r.group_name)
     });

@@ -146,13 +146,13 @@ function HomeTab({ salesData, budgetVsSalesData }) {
     .concat(groups.filter(g => !GROUP_ORDER.includes(g)));
 
   // ═══ PANEL 1: Grouped Bar — Sales by Group & Fiscal Year ═══
-  const years = [...new Set(salesData.sales_by_group_year.map(r => r.fiscal_year))].sort();
+  const years = [...new Set(salesData.sales_by_group_year.map(r => r.cal_year))].sort();
   const barDataMap = {};
   for (const g of orderedGroups) barDataMap[g] = { group: g };
   for (const row of salesData.sales_by_group_year) {
     const g = row.group_name;
     if (!barDataMap[g]) barDataMap[g] = { group: g };
-    barDataMap[g][`FY${row.fiscal_year}`] = Number(row.total_amount);
+    barDataMap[g][`Y${row.cal_year}`] = Number(row.total_amount);
   }
   const barData = orderedGroups.map(g => barDataMap[g] || { group: g });
 
@@ -345,7 +345,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
   const matrixGroups = {};
   for (const row of salesData.sales_by_group_year) {
     if (!matrixGroups[row.group_name]) matrixGroups[row.group_name] = {};
-    matrixGroups[row.group_name][row.fiscal_year] = (matrixGroups[row.group_name][row.fiscal_year] || 0) + Number(row.total_amount);
+    matrixGroups[row.group_name][row.cal_year] = (matrixGroups[row.group_name][row.cal_year] || 0) + Number(row.total_amount);
   }
   const matrixRows = orderedGroups.filter(g => matrixGroups[g]).map(group => {
     const yearData = matrixGroups[group];
@@ -370,7 +370,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
       <div className="home-row">
         {/* Panel 1: Grouped Bar */}
         <PBIPanel
-          title="Total sales amount by Group and Fiscal Year"
+          title="Total sales amount by Group and Year"
           className="home-panel-bar-full"
           rightContent={
             <div className="pbi-kpi-badge">
@@ -380,7 +380,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
           }
         >
           <div className="pbi-legend-row">
-            <span className="pbi-legend-prefix">Fiscal Year</span>
+            <span className="pbi-legend-prefix">Year</span>
             {years.map((y, i) => (
               <span key={y} className="pbi-legend-item">
                 <span className="pbi-legend-dot" style={{ background: FY_COLORS[i % FY_COLORS.length] }} />
@@ -395,7 +395,7 @@ function HomeTab({ salesData, budgetVsSalesData }) {
               <YAxis tickFormatter={formatAxisM} tick={{ fontSize: 13, fill: '#888' }} axisLine={false} tickLine={false} />
               <Tooltip content={<PBITooltip />} />
               {years.map((y, i) => (
-                <Bar key={y} dataKey={`FY${y}`} name={String(y)} fill={FY_COLORS[i % FY_COLORS.length]} barSize={years.length > 3 ? 45 : 60}>
+                <Bar key={y} dataKey={`Y${y}`} name={String(y)} fill={FY_COLORS[i % FY_COLORS.length]} barSize={years.length > 3 ? 45 : 60}>
                   <LabelList dataKey={`FY${y}`} content={<BarLabel />} />
                 </Bar>
               ))}
